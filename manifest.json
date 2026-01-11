@@ -9,15 +9,6 @@
         "author": "Community"
     },
     {
-        "id": "hello-world",
-        "name": "Hello World",
-        "description": "System diagnostic and connectivity test. Displays current Arbor context parameters.",
-        "icon": "\ud83d\udc4b",
-        "path": "./arbor-games/hello-world/index.html",
-        "version": "1.0.0",
-        "author": "Arbor System"
-    },
-    {
         "id": "memory",
         "name": "Arbor Academy: Memory",
         "description": "An interactive educational experience.",
