@@ -41,56 +41,22 @@
 // --- ARBOR GAME CLIENT ---
 // This game relies entirely on 'window.Arbor' being injected by the host.
 
-const Config = {
-    // Default fallback content if none provided by Arbor
-    defaultRepo: 'https://raw.githubusercontent.com/treesys-org/arbor-knowledge/main/data',
-    defaultModule: 'en/01-computing/01-computer-science/01-introduction-to-cs'
-};
-
 const ContentLoader = {
     async fetchText() {
-        // 1. Get Source URL from Arbor Params or Default
-        let sourceBase = Config.defaultRepo;
-        let modulePath = Config.defaultModule;
-
-        if (window.Arbor && window.Arbor.params) {
-            const p = window.Arbor.params;
-            if (p.source) {
-                // Clean URL to get root
-                let src = p.source;
-                if (src.endsWith('data.json')) src = src.substring(0, src.lastIndexOf('/'));
-                if (src.endsWith('/data')) src = src.substring(0, src.lastIndexOf('/'));
-                sourceBase = src;
-            }
-            if (p.module) modulePath = p.module;
-        }
-
-        // 2. Fetch Content
-        try {
-            const url = `${sourceBase}/content/${modulePath.replace(/^\//, '')}.json`; // Guessed path structure
-            
-            // Try Node Info First to get exact content path if possible
-            const nodeUrl = `${sourceBase}/nodes/${modulePath.replace(/^\//, '')}.json`;
-            const nodeRes = await fetch(nodeUrl);
-            
-            if (nodeRes.ok) {
-                // If it's a folder, pick a random leaf
-                const nodes = await nodeRes.json();
-                const leaves = nodes.filter(n => n.type === 'leaf');
-                if (leaves.length > 0) {
-                    const randomLesson = leaves[Math.floor(Math.random() * leaves.length)];
-                    const contentRes = await fetch(`${sourceBase}/content/${randomLesson.contentPath}`);
-                    const contentData = await contentRes.json();
-                    return { text: contentData.content, title: randomLesson.name };
+        // Use the Bridge API to get content securely
+        if (window.Arbor && window.Arbor.content) {
+            try {
+                const lesson = await window.Arbor.content.getNext();
+                if (lesson) {
+                    return { text: lesson.text, title: lesson.title };
                 }
-            } 
-            
-            throw new Error("No content found in module.");
-
-        } catch (e) {
-            console.error(e);
-            return { text: "Welcome to class. Today we will discuss general knowledge.", title: "General Studies" };
+            } catch (e) {
+                console.warn("Bridge Error:", e);
+            }
         }
+        
+        // Only if Bridge fails or returns nothing (Fallbacks)
+        return { text: "Welcome to class. Today we will discuss general knowledge.", title: "General Studies" };
     }
 };
 
