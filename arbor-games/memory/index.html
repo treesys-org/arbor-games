@@ -12,10 +12,24 @@
         .card { perspective: 1000px; }
         .card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s; transform-style: preserve-3d; cursor: pointer; }
         .card.flipped .card-inner { transform: rotateY(180deg); }
-        .card-front, .card-back { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; border-radius: 1rem; padding: 10px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        .card-front { background: linear-gradient(135deg, #10b981, #059669); color: white; font-size: 2rem; }
-        .card-back { background: white; color: #1f2937; transform: rotateY(180deg); border: 2px solid #e5e7eb; font-weight: bold; font-size: 0.8rem; overflow-y: auto; word-break: break-word; }
-        .card.matched .card-back { background: #d1fae5; border-color: #10b981; color: #065f46; }
+        .card-front, .card-back { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; border-radius: 1rem; padding: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .card-front { background: linear-gradient(135deg, #10b981, #059669); color: white; font-size: 2.5rem; }
+        
+        /* Improved Back Style for Readability */
+        .card-back { 
+            background: #fff; 
+            color: #1f2937; 
+            transform: rotateY(180deg); 
+            border: 3px solid #e5e7eb; 
+            font-weight: 800; 
+            font-size: 0.95rem; /* Larger font */
+            line-height: 1.1;
+            overflow-y: hidden; 
+            word-break: break-word;
+            text-align: center;
+        }
+        
+        .card.matched .card-back { background: #d1fae5; border-color: #10b981; color: #065f46; transform: rotateY(180deg) scale(0.95); transition: all 0.3s; }
         .card-back::-webkit-scrollbar { display: none; }
         
         /* Loading Overlay */
@@ -64,10 +78,8 @@ const App = {
     },
     
     init: async () => {
-        // 1. Wait for Bridge
-        if (!window.Arbor) return; // Silent fail if standalone
+        if (!window.Arbor) return;
 
-        // 2. Load Content via URL Params provided by Arbor context
         App.setLoading("Reading Scroll...");
         const content = await ContentHelper.fetchContent();
         
@@ -90,18 +102,22 @@ const App = {
     setLoading: (msg) => document.getElementById('loading-text').innerText = msg,
 
     generatePairs: async (text) => {
-        // We use the Arbor Bridge. We don't care if it's Puter or Ollama.
+        // Updated Prompt: Strict limits on length to prevent card overflow
         const prompt = `
-        Analyze this text: "${text.substring(0, 2000)}".
-        Task: Extract 6 key terms and their short definitions (max 6 words).
+        Analyze this text: "${text.substring(0, 1500)}".
+        Task: Extract 6 key terms.
         Format: Strictly JSON Array of objects with 'term' and 'def'.
-        Example: [{"term": "CPU", "def": "Central Processing Unit"}, ...]
+        
+        CRITICAL CONSTRAINTS:
+        - 'term': Max 2 words.
+        - 'def': Max 4 words. (VERY SHORT DEFINITION).
+        
+        Example: [{"term": "CPU", "def": "Brain of computer"}, ...]
         `;
 
         try {
             const responseText = await window.Arbor.ai.chat([{ role: "user", content: prompt }]);
             
-            // Clean Markdown code blocks if present
             let cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
             const start = cleanJson.indexOf('[');
             const end = cleanJson.lastIndexOf(']');
@@ -116,12 +132,12 @@ const App = {
         } catch (e) {
             console.error("AI Error, using fallback", e);
             return [
-                {term: "Error", def: "AI Generation Failed"},
-                {term: "Retry", def: "Reload the game"},
+                {term: "Error", def: "AI Failed"},
+                {term: "Retry", def: "Reload"},
                 {term: "Arbor", def: "Knowledge Tree"},
-                {term: "Game", def: "Memory Cards"},
-                {term: "Code", def: "JavaScript"},
-                {term: "Style", def: "Tailwind CSS"}
+                {term: "Memory", def: "Match pairs"},
+                {term: "Focus", def: "Pay attention"},
+                {term: "Win", def: "Match all"}
             ];
         }
     },
@@ -140,7 +156,11 @@ const App = {
             <div class="card w-full h-24 md:h-32" onclick="App.flip(${idx})">
                 <div class="card-inner" id="card-${idx}">
                     <div class="card-front">🌿</div>
-                    <div class="card-back p-2 leading-tight flex items-center justify-center h-full w-full text-xs md:text-sm select-none">${c.content}</div>
+                    <div class="card-back select-none">
+                        <span class="${c.type==='term' ? 'text-green-700 text-lg' : 'text-slate-600'}">
+                            ${c.content}
+                        </span>
+                    </div>
                 </div>
             </div>
         `).join('');
@@ -176,13 +196,12 @@ const App = {
             document.getElementById(`card-${idx1}`).parentElement.classList.add('matched');
             document.getElementById(`card-${idx2}`).parentElement.classList.add('matched');
             
-            // BRIDGE: Send XP to Arbor
             if (window.Arbor.game) window.Arbor.game.addXP(10);
             
             document.getElementById('pairs').innerText = `${App.state.matched.length / 2}/6`;
             
             if(App.state.matched.length === App.state.cards.length) {
-                if (window.Arbor.game) window.Arbor.game.addXP(50); // Completion Bonus
+                if (window.Arbor.game) window.Arbor.game.addXP(50);
                 setTimeout(() => alert("Garden Grown! 🌻"), 500);
             }
         } else {
@@ -197,13 +216,10 @@ const App = {
     }
 };
 
-// --- CONTENT HELPER ---
 const ContentHelper = {
     async fetchContent() {
-        // Use the Bridge API to get content securely
         if (window.Arbor && window.Arbor.content) {
             try {
-                // Get the first available lesson from context
                 const lesson = await window.Arbor.content.getNext();
                 if (lesson) {
                     return { title: lesson.title, text: lesson.text };
@@ -213,13 +229,10 @@ const ContentHelper = {
                 return null;
             }
         }
-        
-        // NO FALLBACK / SAFETY MECHANISM. If bridge fails, return null.
         return null; 
     }
 };
 
-// Auto-start
 window.onload = App.init;
 
 </script>
