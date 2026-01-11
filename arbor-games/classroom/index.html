@@ -70,6 +70,7 @@
 
 const Game = {
     canvas: null, ctx: null, state: 'INIT',
+    resolveWaitForInput: null,
     
     actors: {
         prof: { x: 850, y: 220, frame: 0 },
@@ -294,7 +295,7 @@ const Game = {
                         const mark = concept.result === 'correct' ? '✓' : '✗';
                         ctx.fillStyle = concept.result === 'correct' ? '#4ade80' : '#f87171';
                         ctx.font = 'bold 24px VT323';
-                        ctx.fillText(mark, 190, 60 + (i * 40));
+                        ctx.fillText(mark, 200, 60 + (i * 40));
                         ctx.font = '20px VT323'; // Reset font
                     }
                 }
@@ -380,16 +381,7 @@ const Game = {
     
     waitForInput: function() {
         return new Promise(resolve => {
-            const handler = (e) => {
-                if (e.code === 'Space' && this.canAdvance) {
-                    e.preventDefault();
-                    this.canAdvance = false;
-                    document.getElementById('dialogue-hint').style.display = 'none';
-                    window.removeEventListener('keydown', handler);
-                    resolve();
-                }
-            };
-            window.addEventListener('keydown', handler);
+            this.resolveWaitForInput = resolve;
         });
     },
 
@@ -422,18 +414,25 @@ window.onload = () => {
     });
 
     window.addEventListener('keydown', async (e) => {
-        if(e.code === 'Enter' && Game.state === 'PLAYER_INPUT') {
+        if (e.code === 'Enter' && Game.state === 'PLAYER_INPUT') {
             Game.submitPlayerAnswer();
+            return;
         }
-        
+    
         if (e.code === 'Space' && Game.canAdvance) {
             e.preventDefault();
-            
+            Game.canAdvance = false;
+            document.getElementById('dialogue-hint').style.display = 'none';
+    
             if (Game.state === 'WAIT_INTRO') {
-                Game.canAdvance = false;
-                document.getElementById('dialogue-hint').style.display = 'none';
                 Game.state = 'GAMEPLAY';
                 Game.startTurn();
+            } else {
+                if (Game.resolveWaitForInput) {
+                    const resolver = Game.resolveWaitForInput;
+                    Game.resolveWaitForInput = null;
+                    resolver();
+                }
             }
         }
     });
