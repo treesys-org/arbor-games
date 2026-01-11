@@ -14,43 +14,43 @@
         .card.flipped .card-inner { transform: rotateY(180deg); }
         .card-front, .card-back { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; border-radius: 1rem; padding: 10px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
         .card-front { background: linear-gradient(135deg, #10b981, #059669); color: white; font-size: 2rem; }
-        .card-back { background: white; color: #1f2937; transform: rotateY(180deg); border: 2px solid #e5e7eb; font-weight: bold; font-size: 0.9rem; overflow-y: auto; }
+        .card-back { background: white; color: #1f2937; transform: rotateY(180deg); border: 2px solid #e5e7eb; font-weight: bold; font-size: 0.8rem; overflow-y: auto; word-break: break-word; }
         .card.matched .card-back { background: #d1fae5; border-color: #10b981; color: #065f46; }
-        /* Scrollbar hide */
         .card-back::-webkit-scrollbar { display: none; }
+        
+        /* Loading Overlay */
+        #loader { position: fixed; inset:0; background: rgba(255,255,255,0.95); z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s; }
+        .hidden-fade { opacity: 0; pointer-events: none; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 h-screen w-screen flex flex-col overflow-hidden">
 
-    <!-- SETUP SCREEN -->
-    <div id="setup-screen" class="fixed inset-0 z-50 bg-slate-900/90 flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl text-center">
-            <div class="text-6xl mb-4">🧠</div>
-            <h1 class="text-3xl font-black text-slate-800 mb-2">Memory Garden</h1>
-            <p class="text-slate-500 mb-6">Connect terms with their definitions to grow your garden.</p>
-            
-            <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-left mb-6">
-                <p class="text-xs font-bold text-blue-500 uppercase mb-1">Target Context</p>
-                <p id="context-label" class="font-bold text-blue-900 truncate">Detecting...</p>
-            </div>
-
-            <div class="mb-4 text-left">
-                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Ollama Model (Optional)</label>
-                <input id="model-input" type="text" value="llama3.1:latest" class="w-full bg-slate-100 border-none rounded-lg px-3 py-2 text-sm font-bold">
-            </div>
-
-            <button onclick="App.start()" class="w-full py-4 bg-green-600 hover:bg-green-500 text-white font-black rounded-xl shadow-lg transform active:scale-95 transition-all text-lg">
-                GROW GARDEN
+    <!-- DEV WARNING (Shown only if not in Arbor) -->
+    <div id="dev-warning" class="fixed inset-0 z-[100] bg-slate-900/95 flex items-center justify-center hidden">
+        <div class="bg-white p-8 rounded-2xl max-w-md text-center shadow-2xl">
+            <h1 class="text-2xl font-black text-red-600 mb-2">DEV MODE</h1>
+            <p class="text-sm text-slate-500 mb-6">Arbor Bridge not detected. Run simulation?</p>
+            <button onclick="DevMock.activate()" class="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold hover:scale-105 transition-transform">
+                Launch Mock Environment
             </button>
-            <p id="status" class="mt-4 text-xs font-mono text-slate-400 h-4"></p>
         </div>
     </div>
 
+    <!-- LOADING SCREEN -->
+    <div id="loader">
+        <div class="text-6xl mb-4 animate-bounce">🌱</div>
+        <h2 class="text-2xl font-black text-slate-800">Growing Garden...</h2>
+        <p id="loading-text" class="text-slate-500 mt-2 font-mono text-sm">Waiting for Arbor...</p>
+    </div>
+
     <!-- GAME HEADER -->
-    <div class="p-4 bg-white border-b border-slate-200 flex justify-between items-center shadow-sm z-10">
+    <div class="p-4 bg-white border-b border-slate-200 flex justify-between items-center shadow-sm z-10 shrink-0">
         <div class="flex items-center gap-2">
-            <span class="text-2xl">🌱</span>
-            <h2 class="font-black text-lg">Memory</h2>
+            <span class="text-2xl">🧠</span>
+            <div>
+                <h2 class="font-black text-lg leading-none">Memory</h2>
+                <p id="lesson-title" class="text-xs text-slate-400 font-bold uppercase truncate max-w-[150px]">Loading...</p>
+            </div>
         </div>
         <div class="flex gap-4 font-bold text-sm">
             <div class="bg-slate-100 px-3 py-1 rounded-lg">Moves: <span id="moves">0</span></div>
@@ -59,18 +59,13 @@
     </div>
 
     <!-- GAME BOARD -->
-    <div id="game-board" class="flex-1 p-4 grid grid-cols-3 md:grid-cols-4 gap-3 md:gap-4 max-w-5xl mx-auto w-full items-center justify-center content-center">
+    <div id="game-board" class="flex-1 p-4 grid grid-cols-3 md:grid-cols-4 gap-3 md:gap-4 max-w-5xl mx-auto w-full items-center justify-center content-center overflow-y-auto">
         <!-- Cards injected here -->
     </div>
 
 <script>
+// --- CORE GAME LOGIC ---
 const App = {
-    config: {
-        arborBase: 'https://raw.githubusercontent.com/treesys-org/arbor-knowledge/main/data',
-        ollama: 'http://localhost:11434/api/chat',
-        module: null,
-        source: null
-    },
     state: {
         cards: [],
         flipped: [],
@@ -79,128 +74,87 @@ const App = {
         locked: false
     },
     
-    init: () => {
-        const p = new URLSearchParams(location.search);
-        App.config.module = p.get('module');
-        const src = p.get('source');
-        if(src) App.config.arborBase = src.substring(0, src.lastIndexOf('/'));
+    init: async () => {
+        // 1. Wait for Bridge
+        if (!window.Arbor) {
+            document.getElementById('dev-warning').classList.remove('hidden');
+            return; // Stop here, wait for DevMock
+        }
+
+        // 2. Load Content via URL Params provided by Arbor context
+        App.setLoading("Reading Scroll...");
+        const content = await ContentHelper.fetchContent();
         
-        document.getElementById('context-label').innerText = App.config.module || "Root (Random Lesson)";
+        if (!content) {
+            alert("Could not load lesson content.");
+            return;
+        }
+
+        document.getElementById('lesson-title').innerText = content.title;
+
+        // 3. Generate Game Data using Arbor AI
+        App.setLoading("Asking the Sage...");
+        const pairs = await App.generatePairs(content.text);
+        
+        // 4. Start
+        App.setupBoard(pairs);
+        document.getElementById('loader').classList.add('hidden-fade');
     },
 
-    start: async () => {
-        const btn = document.querySelector('button');
-        const status = document.getElementById('status');
-        btn.disabled = true;
-        btn.classList.add('opacity-50');
-        
-        try {
-            // 1. Load Content
-            status.innerText = "Loading Tree...";
-            const lessons = await App.fetchLessons(App.config.module);
-            if(lessons.length === 0) throw new Error("No lessons found.");
-            
-            // 2. Pick Lesson
-            const lesson = lessons[Math.floor(Math.random() * lessons.length)];
-            status.innerText = `Reading: ${lesson.name}...`;
-            const text = await App.fetchText(lesson.contentPath);
-            
-            // 3. Generate Pairs (Try AI, Fallback to Mock)
-            status.innerText = "Generating Seeds (AI)...";
-            let pairs = await App.generatePairsAI(text);
-            
-            if(!pairs || pairs.length < 3) {
-                console.warn("AI failed, using fallback.");
-                status.innerText = "AI Offline. Using default seeds.";
-                pairs = App.getFallbackPairs();
-            }
-            
-            App.setupGame(pairs.slice(0, 6)); // Max 6 pairs (12 cards)
-            document.getElementById('setup-screen').classList.add('hidden');
+    setLoading: (msg) => document.getElementById('loading-text').innerText = msg,
 
-        } catch(e) {
-            status.innerText = "Error: " + e.message;
-            status.classList.add('text-red-500');
-            btn.disabled = false;
-            btn.classList.remove('opacity-50');
+    generatePairs: async (text) => {
+        // We use the Arbor Bridge. We don't care if it's Puter or Ollama.
+        const prompt = `
+        Analyze this text: "${text.substring(0, 2000)}".
+        Task: Extract 6 key terms and their short definitions (max 6 words).
+        Format: Strictly JSON Array of objects with 'term' and 'def'.
+        Example: [{"term": "CPU", "def": "Central Processing Unit"}, ...]
+        `;
+
+        try {
+            const responseText = await window.Arbor.ai.chat([{ role: "user", content: prompt }]);
+            
+            // Clean Markdown code blocks if present
+            let cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+            const start = cleanJson.indexOf('[');
+            const end = cleanJson.lastIndexOf(']');
+            if(start !== -1 && end !== -1) {
+                cleanJson = cleanJson.substring(start, end + 1);
+            }
+
+            const data = JSON.parse(cleanJson);
+            if (Array.isArray(data) && data.length >= 3) return data.slice(0, 6);
+            throw new Error("Invalid AI response");
+
+        } catch (e) {
+            console.error("AI Error, using fallback", e);
+            return [
+                {term: "Error", def: "AI Generation Failed"},
+                {term: "Retry", def: "Reload the game"},
+                {term: "Arbor", def: "Knowledge Tree"},
+                {term: "Game", def: "Memory Cards"},
+                {term: "Code", def: "JavaScript"},
+                {term: "Style", def: "Tailwind CSS"}
+            ];
         }
     },
 
-    fetchLessons: async (path) => {
-        const lessons = [];
-        const traverse = async (p) => {
-            try {
-                const res = await fetch(`${App.config.arborBase}/nodes/${p.replace(/\/+/g,'/')}.json`);
-                if(!res.ok) return;
-                const nodes = await res.json();
-                for(const n of nodes) {
-                    if(n.type==='leaf') lessons.push(n);
-                    else if(n.type==='branch' && n.apiPath) await traverse(n.apiPath);
-                }
-            } catch(e){}
-        };
-        
-        if(path) await traverse(path);
-        else { await traverse('en'); if(lessons.length===0) await traverse('es'); }
-        return lessons;
-    },
-
-    fetchText: async (path) => {
-        const res = await fetch(`${App.config.arborBase}/content/${path}`);
-        const data = await res.json();
-        return data.content.replace(/<[^>]*>?/gm, '').substring(0, 4000);
-    },
-
-    generatePairsAI: async (text) => {
-        const model = document.getElementById('model-input').value;
-        try {
-            const res = await fetch(App.config.ollama, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    model: model,
-                    messages: [{
-                        role: "user", 
-                        content: `Extract 6 key terms and definitions from this text. 
-                        Output strictly JSON array: [{"term": "Word", "def": "Short definition (max 10 words)"}].
-                        Text: "${text}"`
-                    }],
-                    stream: false,
-                    format: "json"
-                })
-            });
-            if(!res.ok) return null;
-            const data = await res.json();
-            const json = JSON.parse(data.message.content);
-            return Array.isArray(json) ? json : json.pairs || null;
-        } catch(e) { return null; }
-    },
-
-    getFallbackPairs: () => [
-        {term: "HTML", def: "Structure of web pages"},
-        {term: "CSS", def: "Styling and layout"},
-        {term: "JS", def: "Interactivity and logic"},
-        {term: "API", def: "Application Programming Interface"},
-        {term: "JSON", def: "Data interchange format"},
-        {term: "DOM", def: "Document Object Model"}
-    ],
-
-    setupGame: (pairs) => {
+    setupBoard: (pairs) => {
         const cards = [];
         pairs.forEach((p, i) => {
             cards.push({ id: i, type: 'term', content: p.term, matchId: i });
             cards.push({ id: i, type: 'def', content: p.def, matchId: i });
         });
         
-        // Shuffle
         App.state.cards = cards.sort(() => Math.random() - 0.5);
         
         const board = document.getElementById('game-board');
         board.innerHTML = App.state.cards.map((c, idx) => `
-            <div class="card w-full h-32 md:h-40" onclick="App.flip(${idx})">
+            <div class="card w-full h-24 md:h-32" onclick="App.flip(${idx})">
                 <div class="card-inner" id="card-${idx}">
                     <div class="card-front">🌿</div>
-                    <div class="card-back">${c.content}</div>
+                    <div class="card-back p-2 leading-tight flex items-center justify-center h-full w-full text-xs md:text-sm select-none">${c.content}</div>
                 </div>
             </div>
         `).join('');
@@ -236,9 +190,13 @@ const App = {
             document.getElementById(`card-${idx1}`).parentElement.classList.add('matched');
             document.getElementById(`card-${idx2}`).parentElement.classList.add('matched');
             
+            // BRIDGE: Send XP to Arbor
+            if (window.Arbor.game) window.Arbor.game.addXP(10);
+            
             document.getElementById('pairs').innerText = `${App.state.matched.length / 2}/6`;
             
             if(App.state.matched.length === App.state.cards.length) {
+                if (window.Arbor.game) window.Arbor.game.addXP(50); // Completion Bonus
                 setTimeout(() => alert("Garden Grown! 🌻"), 500);
             }
         } else {
@@ -253,7 +211,86 @@ const App = {
     }
 };
 
+// --- CONTENT HELPER ---
+const ContentHelper = {
+    async fetchContent() {
+        const params = window.Arbor.params || {};
+        // Default source if testing manually, otherwise use injected param
+        const sourceBase = params.source ? this.cleanUrl(params.source) : 'https://raw.githubusercontent.com/treesys-org/arbor-knowledge/main/data';
+        const modulePath = params.module || 'en/01-computing'; // Fallback
+
+        try {
+            // Logic to find a leaf node text
+            // 1. Try to get node info
+            const safePath = modulePath.replace(/^\//, '');
+            const nodeRes = await fetch(`${sourceBase}/nodes/${safePath}.json`);
+            if (!nodeRes.ok) throw new Error("Node not found");
+            
+            const nodes = await nodeRes.json();
+            const leaf = nodes.find(n => n.type === 'leaf');
+            
+            if (leaf) {
+                const contentRes = await fetch(`${sourceBase}/content/${leaf.contentPath}`);
+                const contentData = await contentRes.json();
+                return { 
+                    title: leaf.name, 
+                    text: contentData.content.replace(/<[^>]*>?/gm, '') 
+                };
+            }
+            throw new Error("No leaves found");
+        } catch (e) {
+            console.warn(e);
+            return { title: "Demo Mode", text: "HTML CSS JavaScript Web Internet Browser Code Data API Network Server Client" };
+        }
+    },
+    
+    cleanUrl(url) {
+        if (url.endsWith('data.json')) return url.substring(0, url.lastIndexOf('/'));
+        if (url.endsWith('/data')) return url.substring(0, url.lastIndexOf('/'));
+        return url;
+    }
+};
+
+// --- DEV MOCK (Simulates Arbor environment for standalone testing) ---
+const DevMock = {
+    activate: () => {
+        document.getElementById('dev-warning').classList.add('hidden');
+        
+        // Inject Mock Bridge
+        window.Arbor = {
+            user: { username: "Dev", avatar: "🛠️" },
+            params: {
+                module: 'en/01-computing', // Default for testing
+                // Using valid repo for fetching real content in dev mode
+                source: 'https://raw.githubusercontent.com/treesys-org/arbor-knowledge/main/data' 
+            },
+            ai: {
+                chat: async (msgs) => {
+                    console.log("[DevMock AI Request]:", msgs[0].content);
+                    await new Promise(r => setTimeout(r, 1500)); // Simulate network
+                    // Mock Response
+                    return JSON.stringify([
+                        {term: "DevTerm1", def: "Definition 1"},
+                        {term: "DevTerm2", def: "Definition 2"},
+                        {term: "DevTerm3", def: "Definition 3"},
+                        {term: "DevTerm4", def: "Definition 4"},
+                        {term: "DevTerm5", def: "Definition 5"},
+                        {term: "DevTerm6", def: "Definition 6"}
+                    ]);
+                }
+            },
+            game: {
+                addXP: (xp) => console.log(`[DevMock Game] Added ${xp} XP`)
+            }
+        };
+        
+        App.init();
+    }
+};
+
+// Auto-start
 window.onload = App.init;
+
 </script>
 </body>
 </html>
