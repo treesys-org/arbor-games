@@ -9,6 +9,15 @@
         "author": "Community"
     },
     {
+        "id": "juego3",
+        "name": "Arbor Arcade: Juego3",
+        "description": "Standalone game module.",
+        "icon": "\ud83d\udd79\ufe0f",
+        "path": "./juego3.html",
+        "version": "1.0.0",
+        "author": "Community"
+    },
+    {
         "id": "memory",
         "name": "Arbor Academy: Memory",
         "description": "An interactive educational experience.",
