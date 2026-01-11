@@ -1,7 +1,7 @@
 
 import os
 import json
-import datetime
+import sys
 
 # ==============================================================================
 #  🎮 ARBOR GAME BUILDER
@@ -9,75 +9,97 @@ import datetime
 # This script scans the 'arbor-games' directory and generates a manifest.json
 # describing the available games.
 #
-# USAGE:
-# 1. Place game folders inside 'arbor-games/' (e.g., arbor-games/classroom/)
-# 2. Run this script: python3 game_builder.py
+# FEATURES:
+# - Scans subdirectories containing index.html
+# - Scans standalone .html files (e.g. juego3.html)
+# - Robust path detection (works from any execution directory)
 # ==============================================================================
 
-GAMES_DIR = "arbor-games"
-OUTPUT_FILE = os.path.join(GAMES_DIR, "manifest.json")
-
 def main():
-    print(f"🕹️  Scanning games in: {GAMES_DIR}")
+    # 1. Determine absolute paths (Robustness Fix)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    games_dir = os.path.join(script_dir, "arbor-games")
+    output_file = os.path.join(games_dir, "manifest.json")
+
+    print(f"📍 Script Location: {script_dir}")
+    print(f"🕹️  Scanning games in: {games_dir}")
     
-    if not os.path.exists(GAMES_DIR):
-        print(f"❌ Error: Directory '{GAMES_DIR}' not found. Make sure you are running this from the repo root.")
+    if not os.path.exists(games_dir):
+        print(f"❌ Error: Directory '{games_dir}' not found.")
+        print(f"   Ensure 'arbor-games' folder is next to this script.")
         return
 
     games = []
     
-    # Get all subdirectories in the games folder
-    if os.path.exists(GAMES_DIR):
-        items = sorted([d for d in os.listdir(GAMES_DIR) if os.path.isdir(os.path.join(GAMES_DIR, d))])
-    else:
-        items = []
-    
-    for item in items:
-        # Skip hidden folders
-        if item.startswith('.'): continue
-        
-        game_path = os.path.join(GAMES_DIR, item)
-        index_file = os.path.join(game_path, "index.html")
-        
-        if os.path.exists(index_file):
-            print(f"   ✅ Found game: {item}")
-            
-            # Basic metadata extraction (defaults)
-            name = item.replace("-", " ").replace("_", " ").title()
-            
-            # Optional: Try reading a meta.json inside the game folder for better details
-            meta_file = os.path.join(game_path, "meta.json")
-            meta = {}
-            if os.path.exists(meta_file):
-                try:
-                    with open(meta_file, 'r') as f:
-                        meta = json.load(f)
-                except: pass
-
-            game_entry = {
-                "id": item,
-                "name": meta.get("name", f"Arbor Academy: {name}"),
-                "description": meta.get("description", "An interactive educational experience."),
-                "icon": meta.get("icon", "👾"),
-                # CRITICAL FIX: Path MUST be relative to the manifest.json file location.
-                # Since manifest.json is inside 'arbor-games/', we just reference the sibling folder.
-                # Example: ./classroom/index.html (NOT ./arbor-games/classroom/index.html)
-                "path": f"./{item}/index.html", 
-                "version": meta.get("version", "1.0.0"),
-                "author": meta.get("author", "Community")
-            }
-            
-            games.append(game_entry)
-        else:
-            print(f"   ⚠️  Skipping {item} (No index.html found)")
-
-    # Write manifest
+    # 2. Get all items in the directory
     try:
-        with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
-            json.dump(games, f, indent=4)
-        print(f"\n✨ Generated manifest with {len(games)} games at: {OUTPUT_FILE}")
+        items = sorted(os.listdir(games_dir))
     except Exception as e:
-        print(f"❌ Error writing manifest: {e}")
+        print(f"❌ Error listing directory: {e}")
+        return
+
+    for item in items:
+        # Skip hidden files and the manifest itself
+        if item.startswith('.') or item == "manifest.json": continue
+        
+        full_path = os.path.join(games_dir, item)
+        
+        # TYPE A: Folder with index.html (Standard)
+        if os.path.isdir(full_path):
+            index_file = os.path.join(full_path, "index.html")
+            if os.path.exists(index_file):
+                print(f"   ✅ Found game folder: {item}")
+                
+                # Metadata
+                meta_file = os.path.join(full_path, "meta.json")
+                meta = {}
+                if os.path.exists(meta_file):
+                    try:
+                        with open(meta_file, 'r', encoding='utf-8') as f: meta = json.load(f)
+                    except: pass
+
+                name = item.replace("-", " ").replace("_", " ").title()
+                
+                games.append({
+                    "id": item,
+                    "name": meta.get("name", f"Arbor Academy: {name}"),
+                    "description": meta.get("description", "An interactive educational experience."),
+                    "icon": meta.get("icon", "👾"),
+                    "path": f"./{item}/index.html", # Relative to manifest.json
+                    "version": meta.get("version", "1.0.0"),
+                    "author": meta.get("author", "Community")
+                })
+            else:
+                # Folder without index.html -> Skip or Warn
+                pass
+
+        # TYPE B: Standalone HTML File (e.g. juego3.html)
+        elif os.path.isfile(full_path) and item.endswith(".html"):
+            print(f"   ✅ Found standalone game: {item}")
+            
+            clean_id = item.replace(".html", "")
+            name = clean_id.replace("-", " ").replace("_", " ").title()
+            
+            games.append({
+                "id": clean_id,
+                "name": f"Arbor Arcade: {name}",
+                "description": "Standalone game module.",
+                "icon": "🕹️",
+                "path": f"./{item}", # Relative to manifest.json
+                "version": "1.0.0",
+                "author": "Community"
+            })
+
+    # 3. Write manifest
+    if games:
+        try:
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(games, f, indent=4)
+            print(f"\n✨ Generated manifest with {len(games)} games at: {output_file}")
+        except Exception as e:
+            print(f"❌ Error writing manifest: {e}")
+    else:
+        print("\n⚠️  No games found. Manifest was not updated.")
 
 if __name__ == "__main__":
     main()
