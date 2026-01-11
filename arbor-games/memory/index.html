@@ -165,19 +165,34 @@ const App = {
         JSON_FORMAT: [{"term": "string", "def": "string"}, ...]
         `;
 
+        let responseText = ""; // Keep it in scope for error logging
         try {
-            const responseText = await window.Arbor.ai.chat([{ role: "user", content: prompt }]);
-            let cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-            const start = cleanJson.indexOf('[');
-            const end = cleanJson.lastIndexOf(']');
-            if(start !== -1 && end !== -1) {
-                cleanJson = cleanJson.substring(start, end + 1);
+            responseText = await window.Arbor.ai.chat([{ role: "user", content: prompt }]);
+            
+            // Regex to find the first JSON array in the response string.
+            // It handles cases where there might be text before or after the array.
+            const jsonMatch = responseText.match(/(\[[\s\S]*\])/);
+
+            if (!jsonMatch) {
+                throw new Error("AI response did not contain a valid JSON array structure.");
             }
-            const data = JSON.parse(cleanJson);
-            if (Array.isArray(data) && data.length >= 3) return data.slice(0, 6);
-            throw new Error("Invalid AI response format");
+            
+            const jsonString = jsonMatch[0];
+            const data = JSON.parse(jsonString);
+            
+            if (Array.isArray(data) && data.length >= 3) {
+                // Sanitize content to prevent HTML injection
+                const sanitizedData = data.map(item => ({
+                    term: item.term ? String(item.term).replace(/<[^>]*>/g, '') : 'Error',
+                    def: item.def ? String(item.def).replace(/<[^>]*>/g, '') : 'Error'
+                }));
+                return sanitizedData.slice(0, 6);
+            }
+
+            throw new Error("Parsed JSON is not a valid array of concepts.");
         } catch (e) {
-            console.error("AI Error:", e);
+            console.error("AI Error in generatePairs:", e.message);
+            console.error("Raw AI response that caused error:", responseText);
             return null;
         }
     },
