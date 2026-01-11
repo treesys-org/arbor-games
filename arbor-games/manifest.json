@@ -1,21 +1,20 @@
-
 [
   {
-    "id": "classroom-sim",
-    "name": "Classroom Simulator",
-    "icon": "👨‍🏫",
-    "description": "Simulador de aula RPG. Interactúa con el profesor y alumnos usando IA local.",
+    "id": "classroom",
+    "name": "Arbor Academy: Classroom",
+    "description": "An interactive educational experience.",
+    "icon": "👾",
     "path": "./arbor-games/classroom/index.html",
-    "author": "Arbor Official",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "author": "Community"
   },
   {
-    "id": "memory-garden",
+    "id": "memory",
     "name": "Memory Garden",
-    "icon": "🧠",
-    "description": "Juego de memoria contextual. Conecta conceptos extraídos de la lección.",
+    "description": "An interactive educational experience.",
+    "icon": "👾",
     "path": "./arbor-games/memory/index.html",
-    "author": "Arbor Official",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "author": "Community"
   }
 ]
