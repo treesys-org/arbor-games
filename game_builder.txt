@@ -19,7 +19,7 @@ def main():
     # 1. Determine absolute paths (Robustness Fix)
     script_dir = os.path.dirname(os.path.abspath(__file__))
     games_dir = os.path.join(script_dir, "arbor-games")
-    output_file = os.path.join(games_dir, "manifest.json")
+    output_file = os.path.join(script_dir, "manifest.json")
 
     print(f"📍 Script Location: {script_dir}")
     print(f"🕹️  Scanning games in: {games_dir}")
@@ -65,7 +65,7 @@ def main():
                     "name": meta.get("name", f"Arbor Academy: {name}"),
                     "description": meta.get("description", "An interactive educational experience."),
                     "icon": meta.get("icon", "👾"),
-                    "path": f"./{item}/index.html", # Relative to manifest.json
+                    "path": f"./arbor-games/{item}/index.html", # Relative to manifest.json
                     "version": meta.get("version", "1.0.0"),
                     "author": meta.get("author", "Community")
                 })
@@ -85,7 +85,7 @@ def main():
                 "name": f"Arbor Arcade: {name}",
                 "description": "Standalone game module.",
                 "icon": "🕹️",
-                "path": f"./{item}", # Relative to manifest.json
+                "path": f"./arbor-games/{item}", # Relative to manifest.json
                 "version": "1.0.0",
                 "author": "Community"
             })
