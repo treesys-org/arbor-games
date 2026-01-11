@@ -1,0 +1,259 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Garden</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Nunito', sans-serif; }
+        .card { perspective: 1000px; }
+        .card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s; transform-style: preserve-3d; cursor: pointer; }
+        .card.flipped .card-inner { transform: rotateY(180deg); }
+        .card-front, .card-back { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; border-radius: 1rem; padding: 10px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .card-front { background: linear-gradient(135deg, #10b981, #059669); color: white; font-size: 2rem; }
+        .card-back { background: white; color: #1f2937; transform: rotateY(180deg); border: 2px solid #e5e7eb; font-weight: bold; font-size: 0.9rem; overflow-y: auto; }
+        .card.matched .card-back { background: #d1fae5; border-color: #10b981; color: #065f46; }
+        /* Scrollbar hide */
+        .card-back::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-screen w-screen flex flex-col overflow-hidden">
+
+    <!-- SETUP SCREEN -->
+    <div id="setup-screen" class="fixed inset-0 z-50 bg-slate-900/90 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl text-center">
+            <div class="text-6xl mb-4">🧠</div>
+            <h1 class="text-3xl font-black text-slate-800 mb-2">Memory Garden</h1>
+            <p class="text-slate-500 mb-6">Connect terms with their definitions to grow your garden.</p>
+            
+            <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-left mb-6">
+                <p class="text-xs font-bold text-blue-500 uppercase mb-1">Target Context</p>
+                <p id="context-label" class="font-bold text-blue-900 truncate">Detecting...</p>
+            </div>
+
+            <div class="mb-4 text-left">
+                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Ollama Model (Optional)</label>
+                <input id="model-input" type="text" value="llama3.1:latest" class="w-full bg-slate-100 border-none rounded-lg px-3 py-2 text-sm font-bold">
+            </div>
+
+            <button onclick="App.start()" class="w-full py-4 bg-green-600 hover:bg-green-500 text-white font-black rounded-xl shadow-lg transform active:scale-95 transition-all text-lg">
+                GROW GARDEN
+            </button>
+            <p id="status" class="mt-4 text-xs font-mono text-slate-400 h-4"></p>
+        </div>
+    </div>
+
+    <!-- GAME HEADER -->
+    <div class="p-4 bg-white border-b border-slate-200 flex justify-between items-center shadow-sm z-10">
+        <div class="flex items-center gap-2">
+            <span class="text-2xl">🌱</span>
+            <h2 class="font-black text-lg">Memory</h2>
+        </div>
+        <div class="flex gap-4 font-bold text-sm">
+            <div class="bg-slate-100 px-3 py-1 rounded-lg">Moves: <span id="moves">0</span></div>
+            <div class="bg-green-100 text-green-700 px-3 py-1 rounded-lg">Pairs: <span id="pairs">0/6</span></div>
+        </div>
+    </div>
+
+    <!-- GAME BOARD -->
+    <div id="game-board" class="flex-1 p-4 grid grid-cols-3 md:grid-cols-4 gap-3 md:gap-4 max-w-5xl mx-auto w-full items-center justify-center content-center">
+        <!-- Cards injected here -->
+    </div>
+
+<script>
+const App = {
+    config: {
+        arborBase: 'https://raw.githubusercontent.com/treesys-org/arbor-knowledge/main/data',
+        ollama: 'http://localhost:11434/api/chat',
+        module: null,
+        source: null
+    },
+    state: {
+        cards: [],
+        flipped: [],
+        matched: [],
+        moves: 0,
+        locked: false
+    },
+    
+    init: () => {
+        const p = new URLSearchParams(location.search);
+        App.config.module = p.get('module');
+        const src = p.get('source');
+        if(src) App.config.arborBase = src.substring(0, src.lastIndexOf('/'));
+        
+        document.getElementById('context-label').innerText = App.config.module || "Root (Random Lesson)";
+    },
+
+    start: async () => {
+        const btn = document.querySelector('button');
+        const status = document.getElementById('status');
+        btn.disabled = true;
+        btn.classList.add('opacity-50');
+        
+        try {
+            // 1. Load Content
+            status.innerText = "Loading Tree...";
+            const lessons = await App.fetchLessons(App.config.module);
+            if(lessons.length === 0) throw new Error("No lessons found.");
+            
+            // 2. Pick Lesson
+            const lesson = lessons[Math.floor(Math.random() * lessons.length)];
+            status.innerText = `Reading: ${lesson.name}...`;
+            const text = await App.fetchText(lesson.contentPath);
+            
+            // 3. Generate Pairs (Try AI, Fallback to Mock)
+            status.innerText = "Generating Seeds (AI)...";
+            let pairs = await App.generatePairsAI(text);
+            
+            if(!pairs || pairs.length < 3) {
+                console.warn("AI failed, using fallback.");
+                status.innerText = "AI Offline. Using default seeds.";
+                pairs = App.getFallbackPairs();
+            }
+            
+            App.setupGame(pairs.slice(0, 6)); // Max 6 pairs (12 cards)
+            document.getElementById('setup-screen').classList.add('hidden');
+
+        } catch(e) {
+            status.innerText = "Error: " + e.message;
+            status.classList.add('text-red-500');
+            btn.disabled = false;
+            btn.classList.remove('opacity-50');
+        }
+    },
+
+    fetchLessons: async (path) => {
+        const lessons = [];
+        const traverse = async (p) => {
+            try {
+                const res = await fetch(`${App.config.arborBase}/nodes/${p.replace(/\/+/g,'/')}.json`);
+                if(!res.ok) return;
+                const nodes = await res.json();
+                for(const n of nodes) {
+                    if(n.type==='leaf') lessons.push(n);
+                    else if(n.type==='branch' && n.apiPath) await traverse(n.apiPath);
+                }
+            } catch(e){}
+        };
+        
+        if(path) await traverse(path);
+        else { await traverse('en'); if(lessons.length===0) await traverse('es'); }
+        return lessons;
+    },
+
+    fetchText: async (path) => {
+        const res = await fetch(`${App.config.arborBase}/content/${path}`);
+        const data = await res.json();
+        return data.content.replace(/<[^>]*>?/gm, '').substring(0, 4000);
+    },
+
+    generatePairsAI: async (text) => {
+        const model = document.getElementById('model-input').value;
+        try {
+            const res = await fetch(App.config.ollama, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    model: model,
+                    messages: [{
+                        role: "user", 
+                        content: `Extract 6 key terms and definitions from this text. 
+                        Output strictly JSON array: [{"term": "Word", "def": "Short definition (max 10 words)"}].
+                        Text: "${text}"`
+                    }],
+                    stream: false,
+                    format: "json"
+                })
+            });
+            if(!res.ok) return null;
+            const data = await res.json();
+            const json = JSON.parse(data.message.content);
+            return Array.isArray(json) ? json : json.pairs || null;
+        } catch(e) { return null; }
+    },
+
+    getFallbackPairs: () => [
+        {term: "HTML", def: "Structure of web pages"},
+        {term: "CSS", def: "Styling and layout"},
+        {term: "JS", def: "Interactivity and logic"},
+        {term: "API", def: "Application Programming Interface"},
+        {term: "JSON", def: "Data interchange format"},
+        {term: "DOM", def: "Document Object Model"}
+    ],
+
+    setupGame: (pairs) => {
+        const cards = [];
+        pairs.forEach((p, i) => {
+            cards.push({ id: i, type: 'term', content: p.term, matchId: i });
+            cards.push({ id: i, type: 'def', content: p.def, matchId: i });
+        });
+        
+        // Shuffle
+        App.state.cards = cards.sort(() => Math.random() - 0.5);
+        
+        const board = document.getElementById('game-board');
+        board.innerHTML = App.state.cards.map((c, idx) => `
+            <div class="card w-full h-32 md:h-40" onclick="App.flip(${idx})">
+                <div class="card-inner" id="card-${idx}">
+                    <div class="card-front">🌿</div>
+                    <div class="card-back">${c.content}</div>
+                </div>
+            </div>
+        `).join('');
+    },
+
+    flip: (idx) => {
+        if(App.state.locked) return;
+        if(App.state.flipped.includes(idx) || App.state.matched.includes(idx)) return;
+        
+        const cardEl = document.getElementById(`card-${idx}`);
+        cardEl.parentElement.classList.add('flipped');
+        App.state.flipped.push(idx);
+        
+        if(App.state.flipped.length === 2) {
+            App.state.moves++;
+            document.getElementById('moves').innerText = App.state.moves;
+            App.checkMatch();
+        }
+    },
+
+    checkMatch: () => {
+        App.state.locked = true;
+        const [idx1, idx2] = App.state.flipped;
+        const c1 = App.state.cards[idx1];
+        const c2 = App.state.cards[idx2];
+        
+        if(c1.matchId === c2.matchId) {
+            // Match
+            App.state.matched.push(idx1, idx2);
+            App.state.flipped = [];
+            App.state.locked = false;
+            
+            document.getElementById(`card-${idx1}`).parentElement.classList.add('matched');
+            document.getElementById(`card-${idx2}`).parentElement.classList.add('matched');
+            
+            document.getElementById('pairs').innerText = `${App.state.matched.length / 2}/6`;
+            
+            if(App.state.matched.length === App.state.cards.length) {
+                setTimeout(() => alert("Garden Grown! 🌻"), 500);
+            }
+        } else {
+            // Fail
+            setTimeout(() => {
+                document.getElementById(`card-${idx1}`).parentElement.classList.remove('flipped');
+                document.getElementById(`card-${idx2}`).parentElement.classList.remove('flipped');
+                App.state.flipped = [];
+                App.state.locked = false;
+            }, 1000);
+        }
+    }
+};
+
+window.onload = App.init;
+</script>
+</body>
+</html>

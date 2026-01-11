@@ -1,0 +1,5 @@
+{
+  "name": "arbor-games",
+  "description": "Una colección de minijuegos educativos descentralizados y 'context-aware'. Estos juegos utilizan IA Generativa (LLMs) para leer dinámicamente cualquier árbol de conocimiento de Arbor y transformar lecciones de texto estático en mecánicas de juego interactivas al instante.",
+  "requestFramePermissions": []
+}

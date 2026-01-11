@@ -1,0 +1,122 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arbor Academy: Classroom</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #202020; color: white; font-family: 'VT323', monospace; overflow: hidden; user-select: none; }
+        #game-container { position: relative; width: 1024px; height: 768px; margin: 20px auto; background-color: #353535; box-shadow: 0 0 20px rgba(0,0,0,0.5); border: 4px solid #555; image-rendering: pixelated; }
+        canvas { display: block; width: 100%; height: 100%; }
+        .pixel-panel { background: #fff; border: 4px solid #000; box-shadow: 4px 4px 0px #000; color: #000; font-family: 'VT323', monospace; font-size: 1.5rem; line-height: 1.2; }
+        .dialogue-box { position: absolute; bottom: 20px; left: 20px; right: 20px; height: 180px; padding: 20px; display: none; z-index: 10; }
+        .dialogue-name { position: absolute; top: -20px; left: 20px; background: #000; color: #fff; padding: 5px 15px; font-family: 'Press Start 2P', cursive; font-size: 0.8rem; border: 2px solid #fff; }
+        #input-area { position: absolute; bottom: 25px; left: 30px; right: 30px; display: none; gap: 10px; z-index: 20; }
+        input[type="text"] { flex: 1; background: #000; color: #0f0; border: 2px solid #fff; padding: 10px; font-family: 'VT323', monospace; font-size: 1.5rem; outline: none; }
+        #config-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 100; display: flex; align-items: center; justify-content: center; }
+    </style>
+</head>
+<body>
+    <div id="config-modal">
+        <div class="pixel-panel p-8 max-w-lg w-full text-center">
+            <h1 class="text-4xl mb-4 font-bold font-['Press_Start_2P'] text-blue-700">CLASSROOM SIM</h1>
+            <p class="mb-4 text-xl">Arbor RPG v1.0</p>
+            <div class="text-left bg-gray-100 p-4 mb-6 border-2 border-dashed border-gray-400 text-sm">
+                <p class="font-bold text-red-600 mb-2">⚠️ REQUISITO TÉCNICO</p>
+                <p>Ollama debe estar corriendo:</p>
+                <code class="block bg-black text-green-400 p-2 mt-2 rounded">OLLAMA_ORIGINS="*" ollama serve</code>
+            </div>
+            <div class="mb-4 text-left"><label class="block font-bold">Modelo Ollama:</label><input id="model-name" type="text" value="llama3.1:latest" class="w-full border-2 border-black p-2 mt-1"></div>
+            <div id="context-display" class="mb-6 text-left p-2 border border-blue-500 bg-blue-100 hidden">
+                <p class="font-bold text-blue-800">🎯 Módulo Detectado:</p>
+                <p id="context-path" class="text-xs font-mono break-all text-blue-900"></p>
+            </div>
+            <button onclick="Game.init()" class="bg-blue-600 text-white w-full py-4 font-bold hover:bg-blue-500 border-4 border-black shadow-[4px_4px_0px_#000] active:translate-y-1 transition-all">ENTRAR A CLASE</button>
+            <p id="status-msg" class="mt-4 text-sm text-gray-500">Esperando conexión...</p>
+        </div>
+    </div>
+    <div id="game-container">
+        <canvas id="world"></canvas>
+        <div id="dialogue-box" class="dialogue-box pixel-panel"><div id="dialogue-name" class="dialogue-name">PROFESOR</div><div id="dialogue-text">...</div><div class="absolute bottom-2 right-4 text-xs text-gray-400 animate-pulse">▼ SPACE</div></div>
+        <div id="input-area"><input type="text" id="player-input" placeholder="Respuesta..." autocomplete="off"><button onclick="Game.submitAnswer()" class="bg-green-600 text-white px-6 border-2 border-white font-bold">RESPONDER</button></div>
+    </div>
+<script>
+const API = { arborBase: 'https://raw.githubusercontent.com/treesys-org/arbor-knowledge/main/data', ollamaBase: 'http://localhost:11434/api/chat', model: 'llama3.1:latest', modulePath: null };
+window.onload = () => {
+    const params = new URLSearchParams(window.location.search);
+    const mod = params.get('module'); const source = params.get('source');
+    if (source) API.arborBase = source.substring(0, source.lastIndexOf('/'));
+    if (mod) { API.modulePath = mod; document.getElementById('context-display').classList.remove('hidden'); document.getElementById('context-path').innerText = mod; }
+};
+const AI = {
+    async chat(messages, systemContext="") {
+        try {
+            const res = await fetch(API.ollamaBase, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ model: API.model, messages: [{role:"system",content:systemContext}, ...messages], stream: false, options:{temperature:0.7}}) });
+            if (!res.ok) throw new Error("Ollama fail"); const data = await res.json(); return data.message.content;
+        } catch(e) { console.error(e); return null; }
+    },
+    extractJSON(text) { try { const start=text.indexOf('{'); const end=text.lastIndexOf('}'); return JSON.parse(text.substring(start, end+1)); } catch(e){return null;} }
+};
+const Content = {
+    lessons: [],
+    async load(path) { this.lessons=[]; if(path) await this.traverse(path); else { await this.traverse('en'); if(this.lessons.length===0) await this.traverse('es'); } return this.lessons.length>0; },
+    async traverse(nodePath) {
+        try { const res=await fetch(`${API.arborBase}/nodes/${nodePath.replace(/\/+/g, '/')}.json`); if(!res.ok)return; const nodes=await res.json(); await Promise.all(nodes.map(async n => { if(n.type==='leaf') this.lessons.push(n); else if(n.type==='branch'&&n.apiPath) await this.traverse(n.apiPath); })); } catch(e){}
+    },
+    async fetchText(path) { const res=await fetch(`${API.arborBase}/content/${path}`); const d=await res.json(); return d.content.replace(/<[^>]*>?/gm,''); }
+};
+const Game = {
+    canvas:null, ctx:null, state:'MENU', currentLesson:null, lessonText:'', boardTopic:"...", boardItems:[],
+    prof:{x:512,y:150}, students:[{x:200,y:400,c:'#f00',n:'Lola'},{x:512,y:400,c:'#0f0',n:'Timmy'},{x:824,y:400,c:'#00f',n:'Nerd'}],
+    init: async function() {
+        API.model = document.getElementById('model-name').value; document.getElementById('status-msg').innerText="Conectando...";
+        const pong = await AI.chat([{role:'user',content:'hi'}]); if(!pong) { document.getElementById('status-msg').innerText="❌ Ollama no responde."; return; }
+        document.getElementById('status-msg').innerText="Cargando curso..."; const ok = await Content.load(API.modulePath); if(!ok){ document.getElementById('status-msg').innerText="❌ Curso vacío."; return;}
+        document.getElementById('config-modal').style.display='none'; this.canvas=document.getElementById('world'); this.canvas.width=1024; this.canvas.height=768; this.ctx=this.canvas.getContext('2d');
+        this.startLoop(); this.startNewClass();
+    },
+    async startNewClass() {
+        this.currentLesson = Content.lessons[Math.floor(Math.random()*Content.lessons.length)];
+        this.lessonText = await Content.fetchText(this.currentLesson.contentPath);
+        this.boardTopic = "Escribiendo..."; this.boardItems = []; this.state = 'LECTURE';
+        this.uiShowDialog("PROFESOR", `Tema: ${this.currentLesson.name}.`);
+        const json = await AI.chat([{role:"user",content:`Texto: "${this.lessonText.substring(0,3000)}". JSON: {"topic":"Título Corto","concepts":["A","B","C"],"lecture":"Explicación corta."}`}],"Profesor experto. JSON.");
+        const plan = AI.extractJSON(json);
+        if(plan) { this.boardTopic=plan.topic; this.boardItems=(plan.concepts||[]).map(c=>({text:c,done:false})); this.uiShowDialog("PROFESOR", plan.lecture); }
+        else { this.boardTopic=this.currentLesson.name; this.boardItems=[{text:"Teoría",done:false}]; this.uiShowDialog("PROFESOR","Analicemos esto."); }
+        window.addEventListener('keydown', this.handleInput);
+    },
+    async triggerInteraction() {
+        window.removeEventListener('keydown',this.handleInput); this.state='INTERACTION';
+        const s = this.students[Math.floor(Math.random()*3)]; this.uiShowDialog(s.n, "Profe, una duda...");
+        const json = await AI.chat([{role:"user",content:`Contexto: ${this.lessonText.substring(0,1000)}. Concepts: ${JSON.stringify(this.boardItems)}. Genera pregunta alumno. JSON: {"q":"texto"}`}],"Alumno. JSON.");
+        const q = AI.extractJSON(json)?.q || "¿Qué significa esto?"; this.uiShowDialog(s.n, q); this.currentQ=q;
+        setTimeout(()=>{document.getElementById('input-area').style.display='flex';document.getElementById('player-input').focus();this.state='INPUT';},1000);
+    },
+    async submitAnswer() {
+        const ans = document.getElementById('player-input').value; if(!ans)return;
+        document.getElementById('player-input').value=''; document.getElementById('input-area').style.display='none'; this.uiShowDialog("PROFESOR","Mmm...");
+        const json = await AI.chat([{role:"user",content:`Texto: ${this.lessonText.substring(0,1000)}. Pregunta: "${this.currentQ}". Respuesta: "${ans}". Evalúa. JSON: {"ok":true/false,"msg":"feedback"}`}],"Evaluador. JSON.");
+        const res = AI.extractJSON(json);
+        this.uiShowDialog("PROFESOR", (res?.ok?"¡EXACTO! ":"Incorrecto. ")+(res?.msg||""));
+        if(res?.ok) { const it=this.boardItems.find(i=>!i.done); if(it) it.done=true; if(this.boardItems.every(i=>i.done)) { setTimeout(()=>this.uiShowDialog("PROFESOR","¡Clase terminada!"),2000); setTimeout(()=>this.startNewClass(),4000); return; } }
+        setTimeout(()=>{this.uiShowDialog("PROFESOR","Siguiente... (Espacio)");window.addEventListener('keydown',this.handleInput);},3000); this.state='LECTURE';
+    },
+    handleInput:(e)=>{ if(e.code==='Space'&&Game.state==='LECTURE') Game.triggerInteraction(); else if(e.code==='Enter'&&Game.state==='INPUT') Game.submitAnswer(); },
+    uiShowDialog(n,t) { document.getElementById('dialogue-box').style.display='block'; document.getElementById('dialogue-name').innerText=n; document.getElementById('dialogue-text').innerText=t; },
+    startLoop() { const loop=()=>{this.draw();requestAnimationFrame(loop);}; loop(); },
+    draw() {
+        const ctx=this.ctx; const w=1024; const h=768;
+        ctx.fillStyle='#5d4037'; ctx.fillRect(0,300,w,h-300); ctx.fillStyle='#e0e0e0'; ctx.fillRect(0,0,w,300);
+        ctx.fillStyle='#2e3b28'; ctx.fillRect(150,20,w-300,200); ctx.strokeStyle='#8d6e63'; ctx.lineWidth=10; ctx.strokeRect(150,20,w-300,200);
+        ctx.fillStyle='rgba(255,255,255,0.9)'; ctx.font='24px cursive'; ctx.textAlign='center'; ctx.fillText(this.boardTopic.toUpperCase(),w/2,60);
+        ctx.textAlign='left'; ctx.font='20px cursive'; let y=100;
+        this.boardItems.forEach(i=>{ ctx.fillStyle=i.done?'#4ade80':'#aaa'; ctx.fillText(i.done?"[✓]":"[ ]",200,y); ctx.fillStyle='#fff'; ctx.fillText(i.text,280,y); y+=40; });
+        ctx.fillStyle='#ffccaa'; ctx.fillRect(this.prof.x-20,this.prof.y,40,40); ctx.fillStyle='#fff'; ctx.fillRect(this.prof.x-20,this.prof.y+30,40,20); ctx.fillStyle='#333'; ctx.fillRect(this.prof.x-25,this.prof.y+50,50,60);
+        this.students.forEach(s=>{ ctx.fillStyle='#8d6e63'; ctx.fillRect(s.x-50,s.y,100,60); ctx.fillStyle=s.c; ctx.fillRect(s.x-20,s.y-40,40,40); ctx.fillStyle='#ffccaa'; ctx.fillRect(s.x-15,s.y-70,30,30); });
+    }
+};
+</script></body></html>
