@@ -11,199 +11,331 @@
         body { background-color: #202020; color: white; font-family: 'VT323', monospace; overflow: hidden; user-select: none; }
         #game-container { position: relative; width: 1024px; height: 768px; margin: 20px auto; background-color: #353535; box-shadow: 0 0 20px rgba(0,0,0,0.5); border: 4px solid #555; image-rendering: pixelated; }
         canvas { display: block; width: 100%; height: 100%; }
+        
         .pixel-panel { background: #fff; border: 4px solid #000; box-shadow: 4px 4px 0px #000; color: #000; font-family: 'VT323', monospace; font-size: 1.5rem; line-height: 1.2; }
         .dialogue-box { position: absolute; bottom: 20px; left: 20px; right: 20px; height: 180px; padding: 20px; display: none; z-index: 10; }
         .dialogue-name { position: absolute; top: -20px; left: 20px; background: #000; color: #fff; padding: 5px 15px; font-family: 'Press Start 2P', cursive; font-size: 0.8rem; border: 2px solid #fff; }
         #input-area { position: absolute; bottom: 25px; left: 30px; right: 30px; display: none; gap: 10px; z-index: 20; }
         input[type="text"] { flex: 1; background: #000; color: #0f0; border: 2px solid #fff; padding: 10px; font-family: 'VT323', monospace; font-size: 1.5rem; outline: none; }
+        
+        /* SCOREBOARD */
+        #scoreboard { position: absolute; top: 20px; left: 20px; width: 180px; background: rgba(0,0,0,0.8); border: 2px solid #fff; padding: 10px; z-index: 5; font-size: 1.2rem; }
+        .score-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .active-turn { color: #ffff00; text-shadow: 0 0 5px #ffff00; font-weight: bold; }
+        .score-correct { color: #0f0; }
+        .score-wrong { color: #f00; }
     </style>
 </head>
 <body>
     
     <div id="game-container">
-        <div class="absolute top-2 right-2 text-xs font-mono text-gray-500 bg-black/50 px-2 py-1 rounded" id="debug-status">Initializing...</div>
-        
         <canvas id="world"></canvas>
         
+        <!-- Scoreboard -->
+        <div id="scoreboard">
+            <div class="text-center border-b border-white mb-2 pb-1 font-bold text-yellow-400">CLASS RANK</div>
+            <div id="scores-list"></div>
+        </div>
+
+        <!-- Dialogue UI -->
         <div id="dialogue-box" class="dialogue-box pixel-panel">
             <div id="dialogue-name" class="dialogue-name">SISTEMA</div>
             <div id="dialogue-text">Cargando...</div>
             <div id="dialogue-hint" class="absolute bottom-2 right-4 text-xs text-gray-400 animate-pulse hidden">▼ SPACE</div>
         </div>
         
+        <!-- Player Input -->
         <div id="input-area">
-            <input type="text" id="player-input" placeholder="Respuesta..." autocomplete="off">
-            <button onclick="Game.submitAnswer()" class="bg-green-600 text-white px-6 border-2 border-white font-bold">ENVIAR</button>
+            <input type="text" id="player-input" placeholder="Tu respuesta..." autocomplete="off">
+            <button onclick="Game.submitPlayerAnswer()" class="bg-green-600 text-white px-6 border-2 border-white font-bold hover:bg-green-500">RESPONDER</button>
         </div>
     </div>
 
 <script>
-// --- ARBOR GAME CLIENT ---
-// This game relies entirely on 'window.Arbor' being injected by the host.
-
-const ContentLoader = {
-    async fetchText() {
-        if (window.Arbor && window.Arbor.content) {
-            try {
-                const lesson = await window.Arbor.content.getNext();
-                if (lesson) {
-                    return { text: lesson.text, title: lesson.title };
-                }
-            } catch (e) {
-                console.warn("Bridge Error:", e);
-                return { text: "Error de conexión con Arbor: " + e.message, title: "ERROR TÉCNICO" };
-            }
-        }
-        return { 
-            text: "ERROR CRÍTICO: No se recibió contenido. Es posible que el módulo seleccionado esté vacío.", 
-            title: "SIN DATOS" 
-        };
-    }
-};
+/**
+ * ARBOR CLASSROOM - TURN BASED
+ */
 
 const Game = {
     canvas: null, ctx: null, state: 'INIT',
-    prof: { x: 512, y: 150 },
-    students: [{x:200,y:400,c:'#f00',n:'Lola'},{x:512,y:400,c:'#0f0',n:'Timmy'},{x:824,y:400,c:'#00f',n:'Nerd'}],
-    lessonData: null,
-    boardItems: [],
-    canAdvance: false, // Prevents skipping text too fast
     
+    // Actors
+    prof: { x: 512, y: 150, frame: 0 },
+    students: [
+        { id: 'lola', name: 'Lola', x: 250, y: 450, color: '#e11d48', isPlayer: false, score: 0, accuracy: 0.9 }, // Smart
+        { id: 'timmy', name: 'Timmy', x: 512, y: 450, color: '#2563eb', isPlayer: false, score: 0, accuracy: 0.6 }, // Average
+        { id: 'player', name: 'YOU', x: 774, y: 450, color: '#16a34a', isPlayer: true, score: 0 } // Player
+    ],
+    
+    // Game Data
+    lessonText: "",
+    concepts: [], // { topic, question, answer_key }
+    
+    // Loop State
+    currentConceptIndex: 0,
+    currentTurnIndex: 0, // 0=Lola, 1=Timmy, 2=Player
+    canAdvance: false,
+
     init: async function() {
         this.canvas = document.getElementById('world');
         this.canvas.width = 1024; this.canvas.height = 768;
         this.ctx = this.canvas.getContext('2d');
         
-        if (!window.Arbor) return;
+        // Setup Player Name from Arbor Context
+        if (window.Arbor && window.Arbor.user) {
+            this.students[2].name = window.Arbor.user.username.toUpperCase();
+        }
 
-        this.setStatus(`Conectado como ${window.Arbor.user.username}`);
-        this.startLoop();
-        
-        await this.loadLesson();
+        this.startRenderLoop();
+        this.updateScoreboard();
+        await this.loadLevel();
     },
 
-    setStatus(msg) { document.getElementById('debug-status').innerText = msg; },
-
-    async loadLesson() {
+    async loadLevel() {
         this.uiShowDialog("SISTEMA", "Descargando lección...");
-        const data = await ContentLoader.fetchText();
-        this.lessonData = data;
         
-        this.uiShowDialog("PROFESOR", `Tema: ${data.title.substring(0,20)}...`);
+        // 1. Fetch Text
+        let rawText = "";
+        if (window.Arbor && window.Arbor.content) {
+            try {
+                const lesson = await window.Arbor.content.getNext();
+                if (lesson) rawText = lesson.text;
+                else rawText = "Bienvenido a la clase de prueba. El conocimiento es poder.";
+            } catch(e) { rawText = "Error loading content."; }
+        }
+        this.lessonText = rawText;
+
+        // 2. AI Extraction (Concepts)
+        this.uiShowDialog("PROFESOR", "Preparando la clase de hoy...");
         
-        // --- STRICTER PROMPT FOR BREVITY ---
+        // Prompt for 3 distinct concepts
         const prompt = `
-        Texto: "${data.text.substring(0, 1500)}".
-        Tarea: Extrae 3 conceptos CLAVE muy cortos (max 3 palabras cada uno).
-        Genera JSON: {
-            "points": ["Concepto 1", "Concepto 2", "Concepto 3"],
-            "intro": "Resumen en 1 sola frase (max 15 palabras)."
+        Texto: "${this.lessonText.substring(0, 2000)}".
+        Tarea: Extrae 3 conceptos CLAVE distintos.
+        Para cada uno, crea una pregunta ESPECÍFICA y una respuesta breve.
+        JSON: {
+            "intro": "Resumen de la clase en 10 palabras.",
+            "concepts": [
+                { "topic": "Concepto 1", "question": "Pregunta específica sobre Concepto 1", "key": "Respuesta correcta breve" },
+                { "topic": "Concepto 2", "question": "Pregunta específica sobre Concepto 2", "key": "Respuesta correcta breve" },
+                { "topic": "Concepto 3", "question": "Pregunta específica sobre Concepto 3", "key": "Respuesta correcta breve" }
+            ]
         }`;
-        
+
         try {
-            const raw = await window.Arbor.ai.chat([{role: "user", content: prompt}]);
-            const plan = this.parseJSON(raw);
+            const res = await window.Arbor.ai.chat([{role:"user", content: prompt}]);
+            const json = this.parseJSON(res);
             
-            if (plan) {
-                this.boardItems = (plan.points || []).slice(0,3).map(t => ({text: t, done: false}));
-                this.uiShowDialog("PROFESOR", plan.intro || "Leamos esto.");
+            if (json && json.concepts && json.concepts.length >= 3) {
+                this.concepts = json.concepts.slice(0, 3);
+                this.uiShowDialog("PROFESOR", json.intro || "Empecemos.");
             } else {
-                this.boardItems = [{text: "Análisis", done: false}];
-                this.uiShowDialog("PROFESOR", "Atentos a la pizarra.");
+                // Fallback
+                this.concepts = [
+                    { topic: "General", question: "¿De qué trata el texto?", key: "Del tema principal" },
+                    { topic: "Detalle", question: "¿Menciona un detalle?", key: "Cualquier detalle válido" },
+                    { topic: "Conclusión", question: "¿Cuál es la conclusión?", key: "El final" }
+                ];
+                this.uiShowDialog("PROFESOR", "Vamos a repasar el texto.");
             }
-            this.state = 'LECTURE';
-            window.addEventListener('keydown', this.handleInput);
             
+            this.state = 'WAIT_INTRO';
+            window.addEventListener('keydown', this.handleInput);
+
         } catch(e) {
             this.uiShowDialog("SISTEMA", "Error IA: " + e.message);
         }
     },
 
-    async triggerInteraction() {
-        if (!this.canAdvance) return; // Prevent accidental skip
+    async startTurn() {
+        // Reset or Loop
+        if (this.currentTurnIndex >= 3) {
+            // End of round, maybe load next lesson?
+            this.uiShowDialog("PROFESOR", "¡Clase terminada! Cargando siguiente tema...");
+            setTimeout(() => location.reload(), 3000); 
+            return;
+        }
+
+        const student = this.students[this.currentTurnIndex];
+        const concept = this.concepts[this.currentTurnIndex]; // 1 concept per student
         
-        window.removeEventListener('keydown', this.handleInput);
-        this.state = 'INTERACTION';
-        const s = this.students[Math.floor(Math.random()*3)];
+        this.updateScoreboard();
+
+        // Step 1: Teacher asks
+        this.state = 'ASKING';
+        this.uiShowDialog("PROFESOR", `${student.name}, ${concept.question}`);
         
-        this.uiShowDialog(s.n, "Profe, una duda rápida...");
-        
-        // Stricter prompt for student question
-        const prompt = `Contexto: ${this.lessonData.text.substring(0,800)}. Puntos: ${JSON.stringify(this.boardItems)}. 
-        Genera pregunta MUY CORTA (max 10 palabras) de un alumno. JSON: {"q": "pregunta"}`;
-        
-        const res = await window.Arbor.ai.chat([{role:"user",content:prompt}]);
-        const json = this.parseJSON(res);
-        
-        this.currentQ = json?.q || "¿Qué significa esto?";
-        this.uiShowDialog(s.n, this.currentQ);
-        
-        setTimeout(() => {
-            document.getElementById('input-area').style.display='flex';
-            const inp = document.getElementById('player-input');
-            inp.focus();
-            inp.select(); // Select all to easily overwrite
-            this.state = 'INPUT';
-        }, 800);
+        await this.wait(2500);
+
+        // Step 2: Student Responds
+        if (!student.isPlayer) {
+            this.state = 'NPC_THINKING';
+            // Simulate AI Answer
+            const shouldFail = Math.random() > student.accuracy;
+            const contextPrompt = `
+            Pregunta: "${concept.question}". 
+            Respuesta Correcta: "${concept.key}".
+            Rol: Estudiante ${shouldFail ? "confundido/erróneo" : "correcto"}.
+            Tarea: Genera una respuesta corta (max 8 palabras).
+            `;
+            
+            const ansRes = await window.Arbor.ai.chat([{role:"user", content:contextPrompt}]);
+            const ansText = ansRes.replace(/"/g, '');
+            
+            this.uiShowDialog(student.name, ansText);
+            await this.wait(2000);
+            
+            // Grading
+            this.evaluate(student, ansText, concept, shouldFail);
+
+        } else {
+            // Player Turn
+            this.state = 'PLAYER_INPUT';
+            document.getElementById('input-area').style.display = 'flex';
+            document.getElementById('player-input').focus();
+            this.uiShowDialog(student.name, "(Es mi turno...)");
+        }
     },
 
-    async submitAnswer() {
-        const ans = document.getElementById('player-input').value;
-        if(!ans) return;
+    async submitPlayerAnswer() {
+        const input = document.getElementById('player-input');
+        const ans = input.value.trim();
+        if (!ans) return;
         
-        document.getElementById('player-input').value='';
-        document.getElementById('input-area').style.display='none';
-        this.uiShowDialog("PROFESOR", "Déjame ver...");
+        input.value = '';
+        document.getElementById('input-area').style.display = 'none';
         
-        const prompt = `Pregunta: "${this.currentQ}". Respuesta: "${ans}". Contexto: ${this.lessonData.text.substring(0,500)}. 
-        Evalúa si es correcto. Sé flexible. JSON: {"ok": true/false, "msg": "feedback muy corto (max 8 palabras)"}`;
+        // Evaluate Player
+        const concept = this.concepts[this.currentTurnIndex];
+        const student = this.students[this.currentTurnIndex];
         
-        const res = await window.Arbor.ai.chat([{role:"user",content:prompt}]);
+        this.uiShowDialog("PROFESOR", "Mmm...");
+        
+        // AI Judge
+        const prompt = `
+        Pregunta: "${concept.question}".
+        Respuesta Alumno: "${ans}".
+        Respuesta Correcta: "${concept.key}".
+        Contexto Texto: "${this.lessonText.substring(0, 500)}".
+        Tarea: Evaluar. JSON: {"correct": true/false, "feedback": "muy breve feedback"}
+        `;
+        
+        const res = await window.Arbor.ai.chat([{role:"user", content:prompt}]);
         const json = this.parseJSON(res);
+        const correct = json?.correct || false;
         
-        const isOk = json?.ok || false;
-        this.uiShowDialog("PROFESOR", (isOk?"✅ ":"❌ ") + (json?.msg||"Interesante."));
-        
-        if (isOk) {
-            const item = this.boardItems.find(i=>!i.done);
-            if(item) item.done = true;
-            if (window.Arbor.game) window.Arbor.game.addXP(20);
+        this.evaluate(student, ans, concept, !correct, json?.feedback);
+    },
 
-            if(this.boardItems.every(i=>i.done)) {
-                setTimeout(()=> {
-                    this.uiShowDialog("PROFESOR", "¡Clase terminada! (Cargando siguiente...)");
-                    // Load next lesson automatically after a delay
-                    setTimeout(() => this.loadLesson(), 3000);
-                }, 2000);
-                return;
-            }
+    evaluate(student, answer, concept, forcedFail = false, aiFeedback = null) {
+        let isCorrect = !forcedFail;
+        let feedback = aiFeedback || (isCorrect ? "¡Correcto!" : "Incorrecto.");
+        
+        this.uiShowDialog("PROFESOR", feedback);
+        
+        if (isCorrect) {
+            student.score++;
+            // Confetti for player
+            if (student.isPlayer && window.Arbor.game) window.Arbor.game.addXP(20);
         }
         
-        // Wait a bit before allowing next interaction so user can read feedback
-        this.canAdvance = false;
+        this.updateScoreboard();
+        
+        // Next Turn
         setTimeout(() => {
-            this.uiShowDialog("PROFESOR", "Siguiente... (Pulsa Espacio)");
-            window.addEventListener('keydown', this.handleInput);
-            this.state = 'LECTURE';
+            this.currentTurnIndex++;
+            this.startTurn();
         }, 2500);
     },
 
     handleInput: (e) => {
-        if(e.code==='Space' && Game.state==='LECTURE') Game.triggerInteraction();
-        else if(e.code==='Enter' && Game.state==='INPUT') Game.submitAnswer();
+        if (e.code === 'Space') {
+            if (Game.state === 'WAIT_INTRO') {
+                Game.currentTurnIndex = 0;
+                window.removeEventListener('keydown', Game.handleInput);
+                Game.startTurn();
+            }
+        } else if (e.code === 'Enter' && Game.state === 'PLAYER_INPUT') {
+            Game.submitPlayerAnswer();
+        }
     },
 
-    parseJSON(str) {
-        try { return JSON.parse(str.substring(str.indexOf('{'), str.lastIndexOf('}')+1)); } catch(e){return null;}
+    // --- RENDER ---
+    startRenderLoop() {
+        const loop = () => { this.draw(); requestAnimationFrame(loop); };
+        loop();
     },
 
-    uiShowDialog(n,t) {
+    draw() {
+        const ctx = this.ctx; const w = 1024; const h = 768;
+        
+        // Room
+        ctx.fillStyle = '#5d4037'; ctx.fillRect(0, 300, w, h-300); // Floor
+        ctx.fillStyle = '#d4d4d4'; ctx.fillRect(0, 0, w, 300); // Wall
+        
+        // Blackboard
+        ctx.fillStyle = '#2e3b28'; ctx.fillRect(200, 20, 624, 200);
+        ctx.strokeStyle = '#8d6e63'; ctx.lineWidth = 8; ctx.strokeRect(200, 20, 624, 200);
+        
+        // Chalk Text
+        ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.font = '20px monospace';
+        
+        // Concepts List on Board
+        if (this.concepts.length > 0) {
+            ctx.fillText("CLASE DE HOY:", 220, 60);
+            this.concepts.forEach((c, i) => {
+                // Dim if done
+                const done = i < this.currentTurnIndex;
+                ctx.fillStyle = done ? 'rgba(255,255,255,0.3)' : 'white';
+                // Mark current
+                const prefix = (i === this.currentTurnIndex) ? "► " : "  ";
+                ctx.fillText(prefix + c.topic, 220, 100 + (i * 40));
+            });
+        } else {
+            ctx.fillText("Cargando...", 450, 120);
+        }
+
+        // Professor
+        ctx.fillStyle = '#ffccaa'; ctx.fillRect(this.prof.x, this.prof.y, 50, 50); // Head
+        ctx.fillStyle = '#1e293b'; ctx.fillRect(this.prof.x - 10, this.prof.y + 50, 70, 90); // Body
+
+        // Students & Desks
+        this.students.forEach((s, i) => {
+            const isTurn = i === this.currentTurnIndex;
+            
+            // Desk
+            ctx.fillStyle = '#8d6e63'; ctx.fillRect(s.x - 60, s.y, 120, 80);
+            
+            // Student Body
+            ctx.fillStyle = s.color; ctx.fillRect(s.x - 25, s.y - 50, 50, 60);
+            // Head
+            ctx.fillStyle = '#ffccaa'; ctx.fillRect(s.x - 20, s.y - 85, 40, 40);
+            
+            // Turn Marker
+            if (isTurn) {
+                ctx.fillStyle = 'yellow';
+                ctx.beginPath(); ctx.moveTo(s.x, s.y - 110); ctx.lineTo(s.x - 10, s.y - 125); ctx.lineTo(s.x + 10, s.y - 125); ctx.fill();
+            }
+        });
+    },
+
+    updateScoreboard() {
+        const list = document.getElementById('scores-list');
+        list.innerHTML = this.students.map((s, i) => `
+            <div class="score-row ${i === this.currentTurnIndex ? 'active-turn' : ''}">
+                <span>${s.name}</span>
+                <span>${s.score} ★</span>
+            </div>
+        `).join('');
+    },
+
+    uiShowDialog(name, text) {
         const box = document.getElementById('dialogue-box');
         const txt = document.getElementById('dialogue-text');
         const hint = document.getElementById('dialogue-hint');
         
-        box.style.display='block';
-        document.getElementById('dialogue-name').innerText=n;
+        box.style.display = 'block';
+        document.getElementById('dialogue-name').innerText = name;
         
         hint.style.display = 'none';
         this.canAdvance = false;
@@ -212,69 +344,18 @@ const Game = {
         let i = 0;
         if(this.typeInt) clearInterval(this.typeInt);
         this.typeInt = setInterval(() => {
-            txt.textContent += t.charAt(i);
+            txt.textContent += text.charAt(i);
             i++;
-            if(i > t.length) {
+            if(i > text.length) {
                 clearInterval(this.typeInt);
                 this.canAdvance = true;
-                hint.style.display = 'block';
+                if (name === "SISTEMA" || name === "PROFESOR") hint.style.display = 'block';
             }
-        }, 15); // Faster typing
+        }, 15);
     },
 
-    startLoop() {
-        const loop = () => { this.draw(); requestAnimationFrame(loop); };
-        loop();
-    },
-
-    // NEW: Text Wrapping Function for Blackboard
-    wrapText(context, text, x, y, maxWidth, lineHeight) {
-        const words = text.split(' ');
-        let line = '';
-
-        for(let n = 0; n < words.length; n++) {
-            const testLine = line + words[n] + ' ';
-            const metrics = context.measureText(testLine);
-            const testWidth = metrics.width;
-            if (testWidth > maxWidth && n > 0) {
-                context.fillText(line, x, y);
-                line = words[n] + ' ';
-                y += lineHeight;
-            } else {
-                line = testLine;
-            }
-        }
-        context.fillText(line, x, y);
-    },
-
-    draw() {
-        const ctx = this.ctx; const w = 1024; const h = 768;
-        ctx.fillStyle='#5d4037'; ctx.fillRect(0,300,w,h-300); ctx.fillStyle='#e0e0e0'; ctx.fillRect(0,0,w,300);
-        
-        // Board
-        ctx.fillStyle='#2e3b28'; ctx.fillRect(150,20,w-300,200); 
-        ctx.strokeStyle='#8d6e63'; ctx.lineWidth=10; ctx.strokeRect(150,20,w-300,200);
-        
-        ctx.fillStyle='white'; ctx.font='20px monospace';
-        let y = 60;
-        
-        this.boardItems.forEach(i => {
-            const prefix = i.done ? "[x] " : "[ ] ";
-            // Use wrapText instead of fillText directly
-            this.wrapText(ctx, prefix + i.text, 180, y, 650, 25);
-            y+=45; // More spacing for wrapped text
-        });
-
-        // Prof
-        ctx.fillStyle='#ffccaa'; ctx.fillRect(this.prof.x,this.prof.y,40,40);
-        ctx.fillStyle='#333'; ctx.fillRect(this.prof.x-5,this.prof.y+40,50,60);
-
-        // Students
-        this.students.forEach(s=>{
-            ctx.fillStyle=s.c; ctx.fillRect(s.x, s.y, 40, 40);
-            ctx.fillStyle='#ffccaa'; ctx.fillRect(s.x+5, s.y-30, 30, 30);
-        });
-    }
+    wait(ms) { return new Promise(r => setTimeout(r, ms)); },
+    parseJSON(str) { try { return JSON.parse(str.substring(str.indexOf('{'), str.lastIndexOf('}')+1)); } catch(e){return null;} }
 };
 
 window.onload = () => Game.init();
