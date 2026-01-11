@@ -1,115 +1,70 @@
 
 import os
 import json
-import re
+import datetime
 
 # ==============================================================================
-#  🎮 ARBOR ARCADE BUILDER
+#  🎮 ARBOR GAME BUILDER
 # ==============================================================================
-# This script scans the 'arbor-games' folder to find games (web apps) and 
-# compiles a 'manifest.json' index for the Arbor UI Arcade.
+# This script scans the 'arbor-games' directory and generates a manifest.json
+# describing the available games.
 #
-# LOGIC:
-# 1. Scans subdirectories within 'arbor-games/'.
-# 2. Checks for 'index.html' (entry point).
-# 3. Reads metadata from 'meta.json' if it exists.
-# 4. Fallback: Extracts <title> from index.html if no meta.json.
+# USAGE:
+# 1. Place game folders inside 'arbor-games/' (e.g., arbor-games/classroom/)
+# 2. Run this script: python3 game_builder.py
 # ==============================================================================
 
-# Configuration
 GAMES_DIR = "arbor-games"
 OUTPUT_FILE = os.path.join(GAMES_DIR, "manifest.json")
-IGNORE_DIRS = {'.git', '.github', 'node_modules', '__pycache__', 'assets', 'lib', 'docs'}
-
-def get_html_title(file_path):
-    """Extracts content of <title> tag from an HTML file."""
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read(2048) # Read first 2KB is usually enough for title
-            match = re.search(r'<title>(.*?)</title>', content, re.IGNORECASE | re.DOTALL)
-            if match:
-                return match.group(1).strip()
-    except:
-        pass
-    return None
 
 def main():
-    print("🎮 Arbor Arcade Builder")
-    print("======================")
+    print(f"🕹️  Scanning games in: {GAMES_DIR}")
     
-    # Check if games directory exists
     if not os.path.exists(GAMES_DIR):
         print(f"❌ Error: Directory '{GAMES_DIR}' not found.")
         return
 
     games = []
     
-    # Scan subdirectories in 'arbor-games'
-    dirs = sorted(os.listdir(GAMES_DIR))
+    # Get all subdirectories in the games folder
+    items = sorted([d for d in os.listdir(GAMES_DIR) if os.path.isdir(os.path.join(GAMES_DIR, d))])
     
-    for item in dirs:
-        dir_path = os.path.join(GAMES_DIR, item)
+    for item in items:
+        # Skip hidden folders
+        if item.startswith('.'): continue
         
-        # Must be a directory
-        if not os.path.isdir(dir_path):
-            continue
+        game_path = os.path.join(GAMES_DIR, item)
+        index_file = os.path.join(game_path, "index.html")
+        
+        if os.path.exists(index_file):
+            print(f"   ✅ Found game: {item}")
             
-        # Ignore system folders
-        if item in IGNORE_DIRS or item.startswith('.'):
-            continue
+            # Basic metadata (could be enhanced to read from a meta.json inside the game folder)
+            name = item.replace("-", " ").replace("_", " ").title()
             
-        # Check for entry point (Must have index.html)
-        index_path = os.path.join(dir_path, "index.html")
-        if not os.path.exists(index_path):
-            continue
+            game_entry = {
+                "id": item,
+                "name": f"Arbor Academy: {name}",
+                "description": "An interactive educational experience.",
+                "icon": "👾",
+                # CRITICAL FIX: Path must be relative to the manifest.json location.
+                # Since manifest.json is INSIDE 'arbor-games/', the path is just './{game}/index.html'
+                "path": f"./{item}/index.html", 
+                "version": "1.0.0",
+                "author": "Community"
+            }
             
-        print(f"   Found game folder: {item}")
-        
-        # Default Metadata
-        game_data = {
-            "id": item,
-            "name": item.replace('-', ' ').replace('_', ' ').title(),
-            "description": "An interactive educational experience.",
-            "icon": "👾",
-            # Path must be relative to the web root or where manifest is loaded
-            # Since index.tsx is at root, we use ./arbor-games/...
-            "path": f"./{GAMES_DIR}/{item}/index.html",
-            "version": "1.0.0",
-            "author": "Community"
-        }
-        
-        # 1. Priority: Try to load 'meta.json' inside the game folder
-        meta_path = os.path.join(dir_path, "meta.json")
-        has_meta = False
-        
-        if os.path.exists(meta_path):
-            try:
-                with open(meta_path, 'r', encoding='utf-8') as f:
-                    meta = json.load(f)
-                    # Merge keys safely
-                    for k, v in meta.items():
-                        if v: game_data[k] = v
-                    has_meta = True
-                    print(f"     - Loaded meta.json")
-            except Exception as e:
-                print(f"     - ⚠️ Error reading meta.json: {e}")
-        
-        # 2. Fallback: If no name in meta (or no meta), try HTML Title
-        if not has_meta or "name" not in meta:
-            html_title = get_html_title(index_path)
-            if html_title:
-                game_data["name"] = html_title
-                print(f"     - Extracted title from HTML: {html_title}")
+            games.append(game_entry)
+        else:
+            print(f"   ⚠️  Skipping {item} (No index.html found)")
 
-        games.append(game_data)
-
-    # Output
-    if games:
+    # Write manifest
+    try:
         with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
-            json.dump(games, f, indent=2, ensure_ascii=False)
-        print(f"\n✅ Success! Generated '{OUTPUT_FILE}' with {len(games)} games.")
-    else:
-        print(f"\n⚠️ No games found in '{GAMES_DIR}'. Make sure folders contain an 'index.html'.")
+            json.dump(games, f, indent=4)
+        print(f"\n✨ Generated manifest with {len(games)} games at: {OUTPUT_FILE}")
+    except Exception as e:
+        print(f"❌ Error writing manifest: {e}")
 
 if __name__ == "__main__":
     main()
