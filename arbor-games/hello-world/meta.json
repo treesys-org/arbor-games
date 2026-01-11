@@ -1,0 +1,7 @@
+{
+  "name": "Hello World",
+  "description": "System diagnostic and connectivity test. Displays current Arbor context parameters.",
+  "icon": "👋",
+  "version": "1.0.0",
+  "author": "Arbor System"
+}

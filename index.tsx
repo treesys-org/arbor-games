@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
@@ -14,7 +15,7 @@ const App = () => {
 
   useEffect(() => {
     // Intentamos cargar el manifiesto generado por el script de Python
-    fetch('./arbor-games/manifest.json')
+    fetch('./manifest.json')
       .then(res => res.json())
       .then(data => {
         setGames(data);
@@ -72,33 +73,35 @@ const App = () => {
 
         {/* GAMES GRID */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {games.map((game) => (
-            <a 
-              key={game.id} 
-              href={game.path}
-              className="group flex flex-col h-full bg-neutral-800 border-l-4 border-green-600 hover:border-white hover:bg-neutral-700 transition-all hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(0,0,0,0.5)] relative overflow-hidden rounded-r-lg"
-            >
-              {/* Background Icon Watermark */}
-              <div className="absolute -top-4 -right-4 text-9xl opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none select-none grayscale">
-                {game.icon}
-              </div>
+          {games.map((game) => {
+            return (
+                <a 
+                key={game.id} 
+                href={game.path}
+                className="group flex flex-col h-full bg-neutral-800 border-l-4 border-green-600 hover:border-white hover:bg-neutral-700 transition-all hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(0,0,0,0.5)] relative overflow-hidden rounded-r-lg"
+                >
+                {/* Background Icon Watermark */}
+                <div className="absolute -top-4 -right-4 text-9xl opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none select-none grayscale">
+                    {game.icon}
+                </div>
 
-              <div className="p-6 flex-1 flex flex-col relative z-10">
-                <div className="flex items-center justify-between mb-4">
-                    <span className="text-4xl filter drop-shadow-lg">{game.icon || '👾'}</span>
-                    <span className="text-xs font-bold bg-black/40 px-2 py-1 rounded text-neutral-400 border border-neutral-600">v{game.version}</span>
+                <div className="p-6 flex-1 flex flex-col relative z-10">
+                    <div className="flex items-center justify-between mb-4">
+                        <span className="text-4xl filter drop-shadow-lg">{game.icon || '👾'}</span>
+                        <span className="text-xs font-bold bg-black/40 px-2 py-1 rounded text-neutral-400 border border-neutral-600">v{game.version}</span>
+                    </div>
+                    
+                    <h2 className="text-2xl font-bold text-white mb-2 leading-tight group-hover:text-green-300">{game.name}</h2>
+                    <p className="text-sm text-neutral-400 mb-6 flex-1">{game.description}</p>
+                    
+                    <div className="pt-4 border-t border-neutral-600/50 flex items-center justify-between text-xs font-bold uppercase tracking-widest text-green-600 group-hover:text-white transition-colors">
+                        <span>Insert Coin</span>
+                        <span>▶</span>
+                    </div>
                 </div>
-                
-                <h2 className="text-2xl font-bold text-white mb-2 leading-tight group-hover:text-green-300">{game.name}</h2>
-                <p className="text-sm text-neutral-400 mb-6 flex-1">{game.description}</p>
-                
-                <div className="pt-4 border-t border-neutral-600/50 flex items-center justify-between text-xs font-bold uppercase tracking-widest text-green-600 group-hover:text-white transition-colors">
-                    <span>Insert Coin</span>
-                    <span>▶</span>
-                </div>
-              </div>
-            </a>
-          ))}
+                </a>
+            );
+          })}
         </div>
       </main>
     </div>
