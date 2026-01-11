@@ -93,6 +93,12 @@ const App = {
         document.getElementById('game-ui').classList.remove('hidden');
         
         const loader = document.getElementById('loader');
+        // Restore loader to its original state for retries
+        loader.innerHTML = `
+            <div class="text-6xl mb-4 animate-bounce">🌱</div>
+            <h2 class="text-2xl font-black text-slate-800">Growing Garden...</h2>
+            <p id="loading-text" class="text-slate-500 mt-2 font-mono text-sm">Waiting for Arbor...</p>
+        `;
         loader.classList.remove('hidden-fade');
 
         if (!window.Arbor) {
@@ -112,6 +118,18 @@ const App = {
 
         App.setLoading("Asking the Sage...");
         const pairs = await App.generatePairs(content.text);
+        
+        if (!pairs) {
+            loader.innerHTML = `
+                <div class="text-center p-8">
+                    <div class="text-6xl mb-4">🦉</div>
+                    <h2 class="text-xl font-bold text-slate-800">AI Generation Failed</h2>
+                    <p class="text-slate-500 mb-6">The Sage could not generate a memory game from this lesson's content.</p>
+                    <button id="retry-button" class="px-6 py-2 bg-slate-200 text-slate-700 text-sm font-bold rounded-lg hover:bg-slate-300 active:scale-95 transition-transform">Try Again</button>
+                </div>`;
+            document.getElementById('retry-button').addEventListener('click', App.init);
+            return;
+        }
         
         App.setupBoard(pairs);
         loader.classList.add('hidden-fade');
@@ -135,14 +153,16 @@ const App = {
         const prompt = `
         Analyze this text: "${text.substring(0, 1500)}".
         Task: Extract 6 key concepts. For each, provide a 'term' and its corresponding 'definition'.
-        Format: A JSON array of exactly 6 objects.
+        Your response must be a valid JSON array of 6 objects, and nothing else.
         
         CRITICAL CONSTRAINTS:
+        - The JSON must be an array of objects.
+        - Each object must have a "term" key and a "def" key.
         - 'term' must be a noun or short concept (max 3 words).
         - 'def' must be a concise, accurate definition of the term (max 5 words).
         - The pairs MUST be directly related and derived from the text.
         
-        Example: [{"term": "CPU", "def": "Brain of the computer"}, ...]
+        JSON_FORMAT: [{"term": "string", "def": "string"}, ...]
         `;
 
         try {
@@ -157,15 +177,8 @@ const App = {
             if (Array.isArray(data) && data.length >= 3) return data.slice(0, 6);
             throw new Error("Invalid AI response format");
         } catch (e) {
-            console.error("AI Error, using fallback:", e);
-            return [
-                {term: "Error", def: "AI Failed to respond"},
-                {term: "Retry", def: "Please reload the game"},
-                {term: "Arbor", def: "A knowledge tree"},
-                {term: "Memory", def: "Game to match pairs"},
-                {term: "Focus", def: "Pay close attention"},
-                {term: "Win", def: "Match all the cards"}
-            ];
+            console.error("AI Error:", e);
+            return null;
         }
     },
 
