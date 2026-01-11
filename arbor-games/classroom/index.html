@@ -52,11 +52,15 @@ const ContentLoader = {
                 }
             } catch (e) {
                 console.warn("Bridge Error:", e);
+                return { text: "Error de conexión con Arbor: " + e.message, title: "ERROR TÉCNICO" };
             }
         }
         
-        // Only if Bridge fails or returns nothing (Fallbacks)
-        return { text: "Welcome to class. Today we will discuss general knowledge.", title: "General Studies" };
+        // SIN MECANISMO DE SEGURIDAD. SI FALLA, MUESTRA ERROR.
+        return { 
+            text: "ERROR CRÍTICO: No se recibió contenido. Es posible que el módulo seleccionado esté vacío o que la conexión haya fallado.", 
+            title: "SIN DATOS" 
+        };
     }
 };
 
