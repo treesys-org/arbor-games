@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,169 +14,159 @@
         .card-front, .card-back { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; border-radius: 1rem; padding: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
         .card-front { background: linear-gradient(135deg, #10b981, #059669); color: white; font-size: 2.5rem; }
         
-        /* Improved Back Style for Readability */
         .card-back { 
             background: #fff; 
             color: #1f2937; 
             transform: rotateY(180deg); 
             border: 3px solid #e5e7eb; 
             font-weight: 800; 
-            font-size: 0.85rem; 
-            line-height: 1.2;
-            overflow: hidden; 
+            font-size: 0.95rem;
+            line-height: 1.1;
+            overflow-y: hidden; 
             word-break: break-word;
             text-align: center;
-            padding: 0.5rem;
         }
         
         .card.matched .card-back { background: #d1fae5; border-color: #10b981; color: #065f46; transform: rotateY(180deg) scale(0.95); transition: all 0.3s; }
         .card-back::-webkit-scrollbar { display: none; }
         
-        /* Loading Overlay */
-        #loader { position: fixed; inset:0; background: rgba(255,255,255,0.95); z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s; }
+        .overlay { position: fixed; inset:0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s; }
         .hidden-fade { opacity: 0; pointer-events: none; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 h-screen w-screen flex flex-col overflow-hidden">
 
-    <!-- LOADING SCREEN -->
-    <div id="loader">
+    <!-- OVERLAYS -->
+    <div id="start-menu" class="overlay bg-slate-50">
+        <div class="text-center p-8">
+            <div class="text-6xl mb-4">🧠</div>
+            <h1 class="text-5xl font-black text-slate-800 mb-2">Memory Garden</h1>
+            <p class="text-lg text-slate-500 mb-8 max-w-lg">Match the terms with their definitions to prove your knowledge and grow your garden!</p>
+            <button id="start-button" class="px-10 py-4 bg-green-600 text-white text-2xl font-bold rounded-2xl shadow-lg hover:bg-green-500 transition-transform active:scale-95">Play</button>
+        </div>
+    </div>
+
+    <div id="loader" class="overlay bg-white/95 hidden-fade">
         <div class="text-6xl mb-4 animate-bounce">🌱</div>
         <h2 class="text-2xl font-black text-slate-800">Growing Garden...</h2>
         <p id="loading-text" class="text-slate-500 mt-2 font-mono text-sm">Waiting for Arbor...</p>
     </div>
 
-    <!-- GAME HEADER -->
-    <div class="p-4 bg-white border-b border-slate-200 flex justify-between items-center shadow-sm z-10 shrink-0">
-        <div class="flex items-center gap-2">
-            <span class="text-2xl">🧠</span>
-            <div>
-                <h2 class="font-black text-lg leading-none">Memory</h2>
-                <p id="lesson-title" class="text-xs text-slate-400 font-bold uppercase truncate max-w-[150px]">Loading...</p>
-            </div>
-        </div>
-        <div class="flex gap-4 font-bold text-sm">
-            <div class="bg-slate-100 px-3 py-1 rounded-lg">Moves: <span id="moves">0</span></div>
-            <div class="bg-green-100 text-green-700 px-3 py-1 rounded-lg">Pairs: <span id="pairs">0/6</span></div>
+    <div id="win-screen" class="overlay bg-green-500/80 backdrop-blur-sm text-white hidden-fade">
+        <div class="text-center p-8">
+            <div class="text-8xl mb-4">🌻</div>
+            <h1 class="text-6xl font-black mb-2">Garden Grown!</h1>
+            <p class="text-xl mb-8">You successfully matched all the concepts.</p>
+            <button id="play-again-button" class="px-10 py-4 bg-white text-green-700 text-2xl font-bold rounded-2xl shadow-lg hover:bg-green-50 transition-transform active:scale-95">Play Again</button>
         </div>
     </div>
 
-    <!-- GAME BOARD -->
-    <div id="game-board" class="flex-1 p-4 grid grid-cols-3 md:grid-cols-4 gap-3 md:gap-4 max-w-5xl mx-auto w-full items-center justify-center content-center overflow-y-auto">
-        <!-- Cards injected here -->
+    <!-- GAME UI (Initially Hidden) -->
+    <div id="game-ui" class="flex flex-col h-full hidden">
+        <div class="p-4 bg-white border-b border-slate-200 flex justify-between items-center shadow-sm z-10 shrink-0">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">🧠</span>
+                <div>
+                    <h2 class="font-black text-lg leading-none">Memory</h2>
+                    <p id="lesson-title" class="text-xs text-slate-400 font-bold uppercase truncate max-w-[150px]">Loading...</p>
+                </div>
+            </div>
+            <div class="flex gap-4 font-bold text-sm">
+                <div class="bg-slate-100 px-3 py-1 rounded-lg">Moves: <span id="moves">0</span></div>
+                <div class="bg-green-100 text-green-700 px-3 py-1 rounded-lg">Pairs: <span id="pairs">0/6</span></div>
+            </div>
+        </div>
+
+        <div id="game-board" class="flex-1 p-4 grid grid-cols-3 md:grid-cols-4 gap-3 md:gap-4 max-w-5xl mx-auto w-full items-center justify-center content-center overflow-y-auto">
+            <!-- Cards injected here -->
+        </div>
     </div>
 
 <script>
-// --- CORE GAME LOGIC ---
 const App = {
-    state: {
-        cards: [],
-        flipped: [],
-        matched: [],
-        moves: 0,
-        locked: false
-    },
+    state: {},
     
     init: async () => {
-        if (!window.Arbor) return;
+        App.resetState();
+        document.getElementById('start-menu').classList.add('hidden-fade');
+        document.getElementById('win-screen').classList.add('hidden-fade');
+        document.getElementById('game-ui').classList.remove('hidden');
+        
+        const loader = document.getElementById('loader');
+        loader.classList.remove('hidden-fade');
+
+        if (!window.Arbor) {
+            App.setLoading("Arbor SDK not found.");
+            return;
+        }
 
         App.setLoading("Reading Scroll...");
-        const content = await ContentHelper.fetchContent();
+        const content = await App.fetchContent();
         
         if (!content || !content.text) {
-            document.getElementById('loader').innerHTML = `<div class="text-center p-8"><div class="text-6xl mb-4">🍂</div><h2 class="text-xl font-bold text-slate-800">No Content</h2><p class="text-slate-500">The module seems empty or failed to load.</p></div>`;
+            loader.innerHTML = `<div class="text-center p-8"><div class="text-6xl mb-4">🍂</div><h2 class="text-xl font-bold text-slate-800">No Content</h2><p class="text-slate-500">The module seems empty or failed to load.</p></div>`;
             return;
         }
 
         document.getElementById('lesson-title').innerText = content.title;
 
-        // 3. Generate Game Data using Arbor AI
         App.setLoading("Asking the Sage...");
         const pairs = await App.generatePairs(content.text);
         
-        // 4. Start
         App.setupBoard(pairs);
-        document.getElementById('loader').classList.add('hidden-fade');
+        loader.classList.add('hidden-fade');
+    },
+
+    resetState: () => {
+        App.state = {
+            cards: [],
+            flipped: [],
+            matched: [],
+            moves: 0,
+            locked: false
+        };
+        document.getElementById('moves').innerText = '0';
+        document.getElementById('pairs').innerText = '0/6';
     },
 
     setLoading: (msg) => document.getElementById('loading-text').innerText = msg,
 
     generatePairs: async (text) => {
-        // 1. Sanitize text for Prompt
-        const cleanText = text.replace(/["\\]/g, '').replace(/\s+/g, ' ').substring(0, 1500);
-
-        // 2. Strict System Prompt
         const prompt = `
-        SOURCE TEXT: "${cleanText}"
+        Analyze this text: "${text.substring(0, 1500)}".
+        Task: Extract 6 key concepts. For each, provide a 'term' and its corresponding 'definition'.
+        Format: A JSON array of exactly 6 objects.
         
-        TASK: Create exactly 6 pairs of (Term + Short Definition) based on the text.
-        FORMAT: Raw JSON Array. No markdown.
-        CONSTRAINTS: 
-        - Term: 1-3 words.
-        - Def: Max 5 words.
+        CRITICAL CONSTRAINTS:
+        - 'term' must be a noun or short concept (max 3 words).
+        - 'def' must be a concise, accurate definition of the term (max 5 words).
+        - The pairs MUST be directly related and derived from the text.
         
-        OUTPUT EXAMPLE:
-        [{"term": "Mitosis", "def": "Cell division process"}, {"term": "Nucleus", "def": "Core of the cell"}]
+        Example: [{"term": "CPU", "def": "Brain of the computer"}, ...]
         `;
 
         try {
             const responseText = await window.Arbor.ai.chat([{ role: "user", content: prompt }]);
-            
-            // 3. Robust JSON Parsing (Regex Extraction)
-            // Finds the first '[' and the last ']' to ignore any conversational filler
-            let jsonStr = responseText.trim();
-            jsonStr = jsonStr.replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '');
-            
-            const start = jsonStr.indexOf('[');
-            const end = jsonStr.lastIndexOf(']');
-            
+            let cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+            const start = cleanJson.indexOf('[');
+            const end = cleanJson.lastIndexOf(']');
             if(start !== -1 && end !== -1) {
-                jsonStr = jsonStr.substring(start, end + 1);
+                cleanJson = cleanJson.substring(start, end + 1);
             }
-
-            const data = JSON.parse(jsonStr);
-            if (Array.isArray(data) && data.length >= 3) {
-                return data.slice(0, 6).map(p => ({
-                    term: (p.term || "Concept").substring(0, 30),
-                    def: (p.def || "Definition").substring(0, 60)
-                }));
-            }
-            throw new Error("Invalid Array");
-
+            const data = JSON.parse(cleanJson);
+            if (Array.isArray(data) && data.length >= 3) return data.slice(0, 6);
+            throw new Error("Invalid AI response format");
         } catch (e) {
-            console.warn("AI Generation Failed, using heuristic fallback:", e);
-            return App.generateHeuristicPairs(text);
+            console.error("AI Error, using fallback:", e);
+            return [
+                {term: "Error", def: "AI Failed to respond"},
+                {term: "Retry", def: "Please reload the game"},
+                {term: "Arbor", def: "A knowledge tree"},
+                {term: "Memory", def: "Game to match pairs"},
+                {term: "Focus", def: "Pay close attention"},
+                {term: "Win", def: "Match all the cards"}
+            ];
         }
-    },
-
-    // FALLBACK: If AI fails, use regex to find Capitalized Words in the text
-    generateHeuristicPairs: (text) => {
-        const words = text.split(/\s+/);
-        const pairs = [];
-        const seen = new Set();
-
-        // Heuristic: Capitalized words in middle of sentences often represent Concepts
-        for (let i = 1; i < words.length - 5; i++) {
-            const w = words[i].replace(/[.,;:()]/g, '');
-            // Check if word starts with Uppercase, has length > 4, and previous word wasn't a sentence ender
-            if (w.length > 4 && /^[A-Z][a-z]+$/.test(w) && !seen.has(w)) {
-                // Grab next 4 words as "definition"
-                const def = words.slice(i + 1, i + 5).join(" ").replace(/["]/g, '');
-                pairs.push({ term: w, def: def + "..." });
-                seen.add(w);
-            }
-            if (pairs.length >= 6) break;
-        }
-
-        // Fill remaining slots if regex didn't find enough
-        while (pairs.length < 6) {
-            pairs.push({ 
-                term: "Review " + (pairs.length + 1), 
-                def: "Check the lesson content." 
-            });
-        }
-        
-        return pairs.slice(0, 6);
     },
 
     setupBoard: (pairs) => {
@@ -205,11 +194,9 @@ const App = {
     },
 
     flip: (idx) => {
-        if(App.state.locked) return;
-        if(App.state.flipped.includes(idx) || App.state.matched.includes(idx)) return;
+        if(App.state.locked || App.state.flipped.includes(idx) || App.state.matched.includes(idx)) return;
         
-        const cardEl = document.getElementById(`card-${idx}`);
-        cardEl.parentElement.classList.add('flipped');
+        document.getElementById(`card-${idx}`).parentElement.classList.add('flipped');
         App.state.flipped.push(idx);
         
         if(App.state.flipped.length === 2) {
@@ -226,7 +213,6 @@ const App = {
         const c2 = App.state.cards[idx2];
         
         if(c1.matchId === c2.matchId) {
-            // Match
             App.state.matched.push(idx1, idx2);
             App.state.flipped = [];
             App.state.locked = false;
@@ -240,10 +226,11 @@ const App = {
             
             if(App.state.matched.length === App.state.cards.length) {
                 if (window.Arbor.game) window.Arbor.game.addXP(50);
-                setTimeout(() => alert("Garden Grown! 🌻"), 500);
+                setTimeout(() => {
+                    document.getElementById('win-screen').classList.remove('hidden-fade');
+                }, 800);
             }
         } else {
-            // Fail
             setTimeout(() => {
                 document.getElementById(`card-${idx1}`).parentElement.classList.remove('flipped');
                 document.getElementById(`card-${idx2}`).parentElement.classList.remove('flipped');
@@ -251,27 +238,23 @@ const App = {
                 App.state.locked = false;
             }, 1000);
         }
-    }
-};
+    },
 
-const ContentHelper = {
-    async fetchContent() {
+    fetchContent: async () => {
         if (window.Arbor && window.Arbor.content) {
             try {
                 const lesson = await window.Arbor.content.getNext();
-                if (lesson) {
-                    return { title: lesson.title, text: lesson.text };
-                }
-            } catch (e) {
-                console.warn("Bridge Error:", e);
-                return null;
-            }
+                if (lesson) return { title: lesson.title, text: lesson.text };
+            } catch (e) { console.warn("Arbor Bridge Error:", e); }
         }
-        return null; 
+        return null;
     }
 };
 
-window.onload = App.init;
+window.onload = () => {
+    document.getElementById('start-button').addEventListener('click', App.init);
+    document.getElementById('play-again-button').addEventListener('click', App.init);
+};
 
 </script>
 </body>
