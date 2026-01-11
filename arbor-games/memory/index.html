@@ -71,8 +71,8 @@ const App = {
         App.setLoading("Reading Scroll...");
         const content = await ContentHelper.fetchContent();
         
-        if (!content) {
-            alert("Could not load lesson content.");
+        if (!content || !content.text) {
+            document.getElementById('loader').innerHTML = `<div class="text-center p-8"><div class="text-6xl mb-4">🍂</div><h2 class="text-xl font-bold text-slate-800">No Content</h2><p class="text-slate-500">The module seems empty or failed to load.</p></div>`;
             return;
         }
 
@@ -210,10 +210,12 @@ const ContentHelper = {
                 }
             } catch (e) {
                 console.warn("Bridge Error:", e);
+                return null;
             }
         }
         
-        return { title: "Demo Mode", text: "HTML CSS JavaScript Web Internet Browser Code Data API Network Server Client" };
+        // NO FALLBACK / SAFETY MECHANISM. If bridge fails, return null.
+        return null; 
     }
 };
 
