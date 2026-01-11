@@ -6,17 +6,19 @@ import re
 # ==============================================================================
 #  🎮 ARBOR ARCADE BUILDER
 # ==============================================================================
-# This script scans the repository folders to find games (web apps) and 
+# This script scans the 'arbor-games' folder to find games (web apps) and 
 # compiles a 'manifest.json' index for the Arbor UI Arcade.
 #
 # LOGIC:
-# 1. Scans immediate subdirectories.
+# 1. Scans subdirectories within 'arbor-games/'.
 # 2. Checks for 'index.html' (entry point).
 # 3. Reads metadata from 'meta.json' if it exists.
 # 4. Fallback: Extracts <title> from index.html if no meta.json.
 # ==============================================================================
 
-OUTPUT_FILE = "manifest.json"
+# Configuration
+GAMES_DIR = "arbor-games"
+OUTPUT_FILE = os.path.join(GAMES_DIR, "manifest.json")
 IGNORE_DIRS = {'.git', '.github', 'node_modules', '__pycache__', 'assets', 'lib', 'docs'}
 
 def get_html_title(file_path):
@@ -35,14 +37,18 @@ def main():
     print("🎮 Arbor Arcade Builder")
     print("======================")
     
+    # Check if games directory exists
+    if not os.path.exists(GAMES_DIR):
+        print(f"❌ Error: Directory '{GAMES_DIR}' not found.")
+        return
+
     games = []
-    root_dir = "."
     
-    # Scan immediate subdirectories
-    dirs = sorted(os.listdir(root_dir))
+    # Scan subdirectories in 'arbor-games'
+    dirs = sorted(os.listdir(GAMES_DIR))
     
     for item in dirs:
-        dir_path = os.path.join(root_dir, item)
+        dir_path = os.path.join(GAMES_DIR, item)
         
         # Must be a directory
         if not os.path.isdir(dir_path):
@@ -65,7 +71,9 @@ def main():
             "name": item.replace('-', ' ').replace('_', ' ').title(),
             "description": "An interactive educational experience.",
             "icon": "👾",
-            "path": f"./{item}/index.html", # Relative path for the frontend
+            # Path must be relative to the web root or where manifest is loaded
+            # Since index.tsx is at root, we use ./arbor-games/...
+            "path": f"./{GAMES_DIR}/{item}/index.html",
             "version": "1.0.0",
             "author": "Community"
         }
@@ -100,9 +108,8 @@ def main():
         with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
             json.dump(games, f, indent=2, ensure_ascii=False)
         print(f"\n✅ Success! Generated '{OUTPUT_FILE}' with {len(games)} games.")
-        print(f"   Upload this file to your repo root so Arbor can read it.")
     else:
-        print("\n⚠️ No games found. Make sure folders contain an 'index.html'.")
+        print(f"\n⚠️ No games found in '{GAMES_DIR}'. Make sure folders contain an 'index.html'.")
 
 if __name__ == "__main__":
     main()
