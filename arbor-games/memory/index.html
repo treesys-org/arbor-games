@@ -200,40 +200,20 @@ const App = {
 // --- CONTENT HELPER ---
 const ContentHelper = {
     async fetchContent() {
-        const params = window.Arbor.params || {};
-        // Default source if testing manually, otherwise use injected param
-        const sourceBase = params.source ? this.cleanUrl(params.source) : 'https://raw.githubusercontent.com/treesys-org/arbor-knowledge/main/data';
-        const modulePath = params.module || 'en/01-computing'; // Fallback
-
-        try {
-            // Logic to find a leaf node text
-            // 1. Try to get node info
-            const safePath = modulePath.replace(/^\//, '');
-            const nodeRes = await fetch(`${sourceBase}/nodes/${safePath}.json`);
-            if (!nodeRes.ok) throw new Error("Node not found");
-            
-            const nodes = await nodeRes.json();
-            const leaf = nodes.find(n => n.type === 'leaf');
-            
-            if (leaf) {
-                const contentRes = await fetch(`${sourceBase}/content/${leaf.contentPath}`);
-                const contentData = await contentRes.json();
-                return { 
-                    title: leaf.name, 
-                    text: contentData.content.replace(/<[^>]*>?/gm, '') 
-                };
+        // Use the Bridge API to get content securely
+        if (window.Arbor && window.Arbor.content) {
+            try {
+                // Get the first available lesson from context
+                const lesson = await window.Arbor.content.getNext();
+                if (lesson) {
+                    return { title: lesson.title, text: lesson.text };
+                }
+            } catch (e) {
+                console.warn("Bridge Error:", e);
             }
-            throw new Error("No leaves found");
-        } catch (e) {
-            console.warn(e);
-            return { title: "Demo Mode", text: "HTML CSS JavaScript Web Internet Browser Code Data API Network Server Client" };
         }
-    },
-    
-    cleanUrl(url) {
-        if (url.endsWith('data.json')) return url.substring(0, url.lastIndexOf('/'));
-        if (url.endsWith('/data')) return url.substring(0, url.lastIndexOf('/'));
-        return url;
+        
+        return { title: "Demo Mode", text: "HTML CSS JavaScript Web Internet Browser Code Data API Network Server Client" };
     }
 };
 
