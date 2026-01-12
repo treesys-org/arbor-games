@@ -18,4 +18,22 @@
     "author": "Arbor Official",
     "version": "1.0.0"
   },
+  {
+    "id": "primer-trabajo",
+    "name": "Primer Trabajo",
+    "icon": "💼",
+    "description": "Simula tu primer día en un nuevo trabajo basado en lo que estás estudiando.",
+    "path": "./arbor-games/primer-trabajo/index.html",
+    "author": "Arbor Official",
+    "version": "1.0.0"
+  },
+  {
+    "id": "hello-world",
+    "name": "Hello World: Bridge v2",
+    "icon": "👋",
+    "description": "Plantilla de diagnóstico para desarrolladores. Demuestra la integración con Arbor.",
+    "path": "./arbor-games/hello-world/index.html",
+    "author": "Arbor Official",
+    "version": "2.0.0"
+  }
 ]

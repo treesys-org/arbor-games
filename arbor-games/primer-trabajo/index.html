@@ -3,125 +3,199 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Arbor: Primer Trabajo</title>
+    <title>Arbor: CareerOS Extreme</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&family=Inter:wght@400;600;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
-        .game-container { max-width: 600px; margin: auto; }
-        .hidden { display: none; }
-        .btn {
-            display: block; width: 100%; text-align: center;
-            padding: 0.75rem 1rem; border-radius: 0.5rem;
-            font-weight: 600; transition: all 0.2s;
-            cursor: pointer; border: none;
+        :root { --bg-dark: #0f172a; --panel: rgba(30, 41, 59, 0.7); --accent: #3b82f6; --success: #10b981; --danger: #ef4444; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #020617; 
+            color: #e2e8f0; 
+            overflow: hidden; 
+            height: 100vh; 
+            background-image: radial-gradient(#1e293b 1px, transparent 1px); 
+            background-size: 20px 20px;
+            touch-action: manipulation; /* Mobile: prevents double-tap to zoom */
         }
-        .btn-primary { background-color: #2563eb; color: white; }
-        .btn-primary:hover { background-color: #1d4ed8; }
-        .btn-secondary { background-color: #e2e8f0; color: #334155; }
-        .btn-secondary:hover { background-color: #cbd5e1; }
-        .chat-bubble { padding: 0.75rem 1rem; border-radius: 1rem; max-width: 80%; margin-bottom: 0.5rem; line-height: 1.5; }
-        .chat-bubble-ai { background-color: #e2e8f0; border-bottom-left-radius: 0.25rem; align-self: flex-start; }
-        .chat-bubble-player { background-color: #2563eb; color: white; border-bottom-right-radius: 0.25rem; align-self: flex-end; }
-        .loading-dots span {
-            animation: blink 1.4s infinite both;
-            height: 8px; width: 8px;
-            background-color: #94a3b8;
-            border-radius: 50%;
-            display: inline-block;
-        }
-        .loading-dots span:nth-child(2) { animation-delay: .2s; }
-        .loading-dots span:nth-child(3) { animation-delay: .4s; }
-        @keyframes blink { 0% { opacity: .2; } 20% { opacity: 1; } 100% { opacity: .2; } }
+        
+        /* FX & Animations */
+        .glass-panel { background: var(--panel); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
+
+        /* Floating Money Text */
+        .float-text { position: absolute; pointer-events: none; animation: floatUp 1.5s ease-out forwards; font-weight: 900; z-index: 50; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-50px) scale(1.5); } }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+
+        /* Layout Utilities */
+        .hidden { display: none !important; }
+        .crt-line { width: 100%; height: 2px; background: rgba(255,255,255,0.05); position: absolute; animation: scan 3s linear infinite; pointer-events: none; z-index: 40; }
+        @keyframes scan { 0% { top: 0%; } 100% { top: 100%; } }
+
+        /* Chat Bubbles */
+        .bubble { max-width: 85%; padding: 12px 16px; margin-bottom: 8px; border-radius: 12px; font-size: 0.95rem; line-height: 1.4; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .bubble-ai { background: #1e293b; border-bottom-left-radius: 2px; border: 1px solid #334155; color: #e2e8f0; }
+        .bubble-user { background: #2563eb; color: white; border-bottom-right-radius: 2px; align-self: flex-end; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
+        @keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+
+        /* Task Card */
+        .task-card { transition: transform 0.3s ease; }
+        .task-card:hover { transform: translateY(-2px); }
     </style>
 </head>
-<body class="p-4 md:p-8">
+<body class="flex items-center justify-center p-4">
 
-    <div class="game-container">
-        <header class="text-center mb-8">
-            <h1 class="text-4xl font-black text-slate-800">Primer Trabajo</h1>
-            <p id="arbor-status" class="text-sm text-slate-500 mt-1">Conectando con ArborOS...</p>
-            <div id="player-wallet" class="mt-4 bg-green-100 border border-green-300 text-green-800 rounded-lg p-2 inline-block text-sm">
-                <span class="font-bold">Balance:</span> <span id="player-money" class="font-mono font-bold">$0</span>
+    <div class="crt-line"></div>
+
+    <!-- MAIN UI CONTAINER -->
+    <div class="relative w-full max-w-lg h-[90vh] glass-panel rounded-2xl overflow-hidden flex flex-col">
+        
+        <!-- TOP HUD: Stats -->
+        <header class="bg-slate-900/80 border-b border-slate-700 p-4 flex justify-between items-center z-10">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-xl shadow-[0_0_15px_rgba(37,99,235,0.5)]">💼</div>
+                <div>
+                    <h1 class="text-xs text-blue-400 font-bold tracking-widest uppercase">CAREER_OS <span class="text-white">v2.0</span></h1>
+                    <div id="job-title-hud" class="text-xs text-slate-400 truncate max-w-[120px]">Desempleado</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-4 text-xs mono">
+                <div class="text-center">
+                    <div class="text-slate-500 uppercase text-[0.6rem]">REP</div>
+                    <div id="hud-rep" class="text-purple-400 font-bold text-lg">50%</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-slate-500 uppercase text-[0.6rem]">NRG</div>
+                    <div id="hud-energy" class="text-yellow-400 font-bold text-lg">100%</div>
+                </div>
+                <div class="text-center bg-slate-800 px-3 py-1 rounded border border-slate-700">
+                    <div class="text-slate-500 uppercase text-[0.6rem]">CREDITS</div>
+                    <div id="hud-money" class="text-emerald-400 font-bold text-lg">$0</div>
+                </div>
             </div>
         </header>
 
-        <main id="game-content">
-
-            <!-- PANTALLA DE CARGA INICIAL -->
-            <div id="loading-screen">
-                <div class="bg-white p-8 rounded-xl shadow-md text-center">
-                    <div class="loading-dots mb-4"><span></span><span></span><span></span></div>
-                    <p id="loading-text" class="text-slate-600 font-medium">Consultando tu currículum...</p>
-                </div>
+        <!-- MAIN STAGE -->
+        <main id="game-stage" class="flex-1 relative overflow-hidden flex flex-col">
+            
+            <!-- VIEW: LOADING -->
+            <div id="view-loading" class="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-slate-900 z-50">
+                <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-6"></div>
+                <h2 class="text-2xl font-black text-white tracking-tighter mb-2">INITIALIZING...</h2>
+                <p id="loading-text" class="text-slate-400 mono text-xs typing-effect">Connecting to Arbor Neural Bridge...</p>
             </div>
 
-            <!-- PANTALLA DE OFERTA DE TRABAJO -->
-            <div id="job-offer-screen" class="hidden">
-                <div class="bg-white p-8 rounded-xl shadow-md text-center">
-                    <div class="text-5xl mb-4">💼</div>
-                    <h2 class="text-sm font-bold text-blue-600 uppercase tracking-wider">OFERTA DE TRABAJO</h2>
-                    <p id="job-title" class="text-2xl font-bold text-slate-800 my-2">...</p>
-                    <p id="job-description" class="text-slate-500 mb-6">...</p>
-                    <button id="btn-start-interview" class="btn btn-primary">Empezar Entrevista</button>
-                </div>
-            </div>
-
-            <!-- PANTALLA DE ENTREVISTA -->
-            <div id="interview-screen" class="hidden">
-                <div class="bg-white p-6 rounded-xl shadow-md">
-                    <div id="chat-container" class="h-80 overflow-y-auto mb-4 flex flex-col p-2 bg-slate-50 rounded-lg">
-                        <!-- Los mensajes del chat se insertan aquí -->
+            <!-- VIEW: JOB OFFER -->
+            <div id="view-offer" class="absolute inset-0 flex flex-col p-6 hidden fade-in bg-slate-900/90">
+                <div class="flex-1 flex flex-col justify-center items-center text-center">
+                    <div class="text-6xl mb-6 filter drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">📄</div>
+                    <div class="bg-blue-500/10 text-blue-400 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-4 border border-blue-500/20">Oportunidad Detectada</div>
+                    <h2 id="offer-title" class="text-3xl md:text-4xl font-black text-white mb-4 leading-tight">...</h2>
+                    <p id="offer-desc" class="text-slate-400 text-sm md:text-base max-w-xs leading-relaxed">...</p>
+                    
+                    <div class="grid grid-cols-2 gap-4 mt-8 w-full max-w-xs">
+                        <div class="bg-slate-800 p-3 rounded text-center border border-slate-700">
+                            <div class="text-[0.6rem] text-slate-500 uppercase">Salario Base</div>
+                            <div class="text-emerald-400 font-mono font-bold text-lg">$<span id="offer-salary">0</span></div>
+                        </div>
+                        <div class="bg-slate-800 p-3 rounded text-center border border-slate-700">
+                            <div class="text-[0.6rem] text-slate-500 uppercase">Dificultad</div>
+                            <div class="text-red-400 font-mono font-bold text-lg">ALTA</div>
+                        </div>
                     </div>
-                    <form id="interview-form" class="flex items-center gap-2">
-                        <input type="text" id="interview-input" placeholder="Escribe tu respuesta..." class="flex-1 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition">
-                        <button type="submit" class="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd" /></svg>
-                        </button>
-                    </form>
+                </div>
+                <button id="btn-accept-offer" class="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold text-lg rounded-xl shadow-lg transition-all active:scale-95">
+                    INICIAR PROCESO DE SELECCIÓN
+                </button>
+            </div>
+
+            <!-- VIEW: INTERVIEW (CHAT) -->
+            <div id="view-interview" class="absolute inset-0 flex flex-col hidden bg-slate-900">
+                <div id="chat-feed" class="flex-1 overflow-y-auto p-4 flex flex-col gap-2 scroll-smooth">
+                    <!-- Messages injected here -->
+                </div>
+                <form id="chat-form" class="p-3 bg-slate-800 border-t border-slate-700 flex gap-2">
+                    <input type="text" id="chat-input" class="flex-1 bg-slate-900 border border-slate-600 text-white px-4 py-3 rounded-lg focus:outline-none focus:border-blue-500 transition-colors" placeholder="Escribe tu respuesta..." autocomplete="off">
+                    <button type="submit" class="bg-blue-600 text-white px-4 rounded-lg hover:bg-blue-500 transition-colors">
+                        ➤
+                    </button>
+                </form>
+            </div>
+
+            <!-- VIEW: WORK DASHBOARD -->
+            <div id="view-work" class="absolute inset-0 flex flex-col p-4 hidden bg-slate-900">
+                <div class="text-center mb-4">
+                    <h3 class="text-slate-400 text-xs uppercase tracking-widest">DÍA LABORAL <span id="day-counter">1</span></h3>
+                    <div class="flex justify-center gap-1 mt-2">
+                        <span id="dot-1" class="w-2 h-2 rounded-full bg-slate-700"></span>
+                        <span id="dot-2" class="w-2 h-2 rounded-full bg-slate-700"></span>
+                        <span id="dot-3" class="w-2 h-2 rounded-full bg-slate-700"></span>
+                    </div>
+                </div>
+
+                <div class="flex-1 flex items-center justify-center perspective-1000">
+                    <!-- TASK CARD -->
+                    <div id="task-card" class="w-full max-w-sm bg-slate-800 border border-slate-600 rounded-xl p-6 shadow-2xl relative slide-up">
+                        <div class="absolute -top-3 left-6 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded uppercase">Prioridad Alta</div>
+                        <div class="mb-6">
+                            <h4 class="text-lg font-bold text-white mb-2" id="task-title">Incidente #404</h4>
+                            <p class="text-slate-400 text-sm leading-relaxed" id="task-desc">...</p>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <button id="btn-opt-a" class="w-full p-4 bg-slate-700 hover:bg-slate-600 border border-slate-600 hover:border-slate-500 rounded-lg text-left transition-all active:scale-98 group">
+                                <span class="block text-xs text-blue-400 font-bold mb-1 group-hover:text-blue-300">OPCIÓN A</span>
+                                <span id="txt-opt-a" class="text-sm text-slate-200">...</span>
+                            </button>
+                            <button id="btn-opt-b" class="w-full p-4 bg-slate-700 hover:bg-slate-600 border border-slate-600 hover:border-slate-500 rounded-lg text-left transition-all active:scale-98 group">
+                                <span class="block text-xs text-purple-400 font-bold mb-1 group-hover:text-purple-300">OPCIÓN B</span>
+                                <span id="txt-opt-b" class="text-sm text-slate-200">...</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- PANTALLA DE DÍA DE TRABAJO -->
-            <div id="workday-screen" class="hidden">
-                <div class="bg-white p-8 rounded-xl shadow-md space-y-6">
+            <!-- VIEW: SUMMARY -->
+            <div id="view-summary" class="absolute inset-0 flex flex-col p-8 hidden items-center justify-center bg-slate-900/95 z-40">
+                <div class="text-6xl mb-4" id="summary-icon">🎉</div>
+                <h2 class="text-3xl font-black text-white mb-2">INFORME DIARIO</h2>
+                <div class="w-full h-px bg-slate-700 my-4"></div>
+                <div class="space-y-4 w-full max-w-xs text-center">
                     <div>
-                        <h2 class="text-lg font-bold text-slate-800">Tu Primer Día</h2>
-                        <p class="text-sm text-slate-500">¡Bienvenido/a a bordo!</p>
+                        <div class="text-xs text-slate-500 uppercase">Ganancias Totales</div>
+                        <div class="text-3xl font-mono font-bold text-emerald-400" id="summary-money">$0</div>
                     </div>
-                    <div id="work-scenario">
-                        <div class="border-l-4 border-amber-400 pl-4 py-2 bg-amber-50 rounded-r-lg">
-                            <p class="font-bold text-amber-900">Boby, tu compañero:</p>
-                            <p id="boby-dialogue" class="text-amber-800">...</p>
-                        </div>
-                        <div class="my-6 w-full h-px bg-slate-200"></div>
-                        <div class="border-l-4 border-indigo-400 pl-4 py-2 bg-indigo-50 rounded-r-lg">
-                            <p class="font-bold text-indigo-900"><span id="client-name">Micaela</span>, la clienta:</p>
-                            <p id="micaela-problem" class="text-indigo-800">...</p>
-                        </div>
-                    </div>
-                    <div id="work-choices" class="space-y-3">
-                        <h3 class="text-center font-semibold text-slate-600">¿Qué harás?</h3>
-                        <!-- Botones de opción se insertan aquí -->
+                    <div>
+                        <div class="text-xs text-slate-500 uppercase">Evaluación de Desempeño</div>
+                        <p class="text-sm text-slate-300" id="summary-text">...</p>
                     </div>
                 </div>
-            </div>
-
-             <!-- PANTALLA FINAL -->
-             <div id="end-screen" class="hidden">
-                <div class="bg-white p-8 rounded-xl shadow-md text-center">
-                    <div id="end-icon" class="text-5xl mb-4">🎉</div>
-                    <h2 class="text-2xl font-bold text-slate-800">Fin de la Jornada</h2>
-                    <p id="money-earned" class="text-lg font-bold text-green-600 my-2"></p>
-                    <p id="end-outcome" class="text-slate-600 my-4">...</p>
-                    <button id="btn-restart" class="btn btn-primary">Jugar de Nuevo</button>
-                </div>
+                <button id="btn-restart" class="mt-8 px-8 py-3 bg-white text-slate-900 font-bold rounded hover:bg-slate-200 transition-colors">
+                    SIGUIENTE TURNO
+                </button>
             </div>
 
         </main>
     </div>
 
-    <script type="module" src="./game.js"></script>
+    <!-- AUDIO ENGINE (HIDDEN) -->
+    <div id="audio-toggle" class="fixed bottom-4 right-4 text-xs text-slate-600 cursor-pointer">🔊 SOUND ON</div>
 
+    <script type="module" src="./game.js"></script>
 </body>
 </html>

@@ -89,10 +89,17 @@
         @media (max-width: 768px) {
             .dialogue-box { font-size: 1.3rem; height: auto; bottom: 10px; padding: 15px; }
             .judge-btn { font-size: 0.8rem; padding: 1rem; }
+            
             #input-overlay { bottom: 180px; }
-            #text-overlay { bottom: 180px; flex-direction: column; }
-            #player-input { width: 100%; }
-            #btn-submit { width: 100%; }
+            
+            /* Move text input to TOP on mobile to avoid keyboard overlap */
+            #text-overlay { 
+                bottom: auto; 
+                top: 20%;
+                flex-direction: column; 
+            }
+            #player-input { width: 100%; font-size: 1.5rem; }
+            #btn-submit { width: 100%; padding: 0.8rem; }
         }
     </style>
 </head>
