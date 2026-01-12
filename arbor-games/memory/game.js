@@ -1,3 +1,4 @@
+
 /**
  * GAME.JS
  * Core Logic for Memory Garden: Overgrowth
@@ -59,28 +60,28 @@ class MemoryGame {
         this.els.btnStart.classList.add('hidden');
         this.els.loadState.classList.remove('hidden');
         
-        // 1. Initialize Audio
+        // 1. Initialize Audio (Must be done on user gesture)
         await this.fx.initAudio();
 
         // 2. Fetch Content
         const content = await this.fetchContent();
         
-        if (!content) {
-            this.handleError("No lesson content found.");
-            return;
-        }
-        
         this.els.topic.innerText = content.title;
         this.els.topic.classList.remove('opacity-0');
 
-        // 3. Generate Cards via AI
+        // 3. Generate Cards via AI (with timeout)
         const pairs = await this.generatePairs(content.text);
         
-        if (pairs) {
+        if (pairs && pairs.length > 0) {
             this.buildGrid(pairs);
             this.startGame();
         } else {
-            this.handleError("Failed to synthesize memory crystals.");
+            // Absolute fallback to ensure game is playable
+            this.handleError("Synthesis failed. Using cached crystals.");
+            setTimeout(() => {
+                this.buildGrid(this.getFallbackPairs());
+                this.startGame();
+            }, 1500);
         }
     }
 
@@ -92,7 +93,7 @@ class MemoryGame {
                 if (lesson) return { title: lesson.title, text: lesson.text };
             } catch (e) { console.warn("Arbor Bridge Error", e); }
         }
-        // Fallback for testing
+        // Fallback for testing/standalone
         return { 
             title: "Demo Mode: Botany", 
             text: "Photosynthesis is the process by which plants use sunlight, water, and carbon dioxide to create oxygen and energy in the form of sugar. Chlorophyll gives plants their green color." 
@@ -106,33 +107,40 @@ class MemoryGame {
         Analyze this text: "${text.substring(0, 1000)}".
         Create 6 pairs of "Term" vs "Definition".
         Output ONLY valid JSON array: [{"t": "Term", "d": "Definition (max 6 words)"}, ...]
+        Do NOT wrap in markdown code blocks.
         `;
 
-        try {
-            let json = null;
-            
-            if (window.Arbor && window.Arbor.ai) {
-                const response = await window.Arbor.ai.chat([{ role: "user", content: prompt }]);
-                const match = response.match(/(\[[\s\S]*\])/);
-                if (match) json = JSON.parse(match[0]);
-            } else {
-                // Mock AI delay
-                await new Promise(r => setTimeout(r, 1000));
-                json = [
-                    {t: "Photosynthesis", d: "Process creating energy from sunlight"},
-                    {t: "Chlorophyll", d: "Pigment making plants green"},
-                    {t: "Stomata", d: "Pores for gas exchange"},
-                    {t: "Xylem", d: "Transports water up"},
-                    {t: "Phloem", d: "Transports sugars down"},
-                    {t: "Roots", d: "Absorb water and nutrients"}
-                ];
+        // Timeout Promise to prevent hanging forever
+        const timeout = new Promise((resolve) => setTimeout(() => resolve(null), 5000));
+
+        const aiRequest = async () => {
+            try {
+                if (window.Arbor && window.Arbor.ai) {
+                    const response = await window.Arbor.ai.chat([{ role: "user", content: prompt }]);
+                    // Robust JSON Extraction
+                    const cleanResponse = response.replace(/```json/g, '').replace(/```/g, '');
+                    const match = cleanResponse.match(/\[[\s\S]*\]/);
+                    if (match) return JSON.parse(match[0]);
+                } 
+                return null;
+            } catch (e) {
+                console.error("AI Generation Error:", e);
+                return null;
             }
-            
-            return json ? json.slice(0, 6) : null;
-        } catch (e) {
-            console.error(e);
-            return null;
-        }
+        };
+
+        return Promise.race([aiRequest(), timeout]);
+    }
+
+    getFallbackPairs() {
+        return [
+            {t: "Photosynthesis", d: "Creating energy from sunlight"},
+            {t: "Chlorophyll", d: "Pigment making plants green"},
+            {t: "Stomata", d: "Pores for gas exchange"},
+            {t: "Xylem", d: "Transports water up"},
+            {t: "Phloem", d: "Transports sugars down"},
+            {t: "Roots", d: "Absorb water and nutrients"}
+        ];
     }
 
     handleError(msg) {
@@ -148,8 +156,11 @@ class MemoryGame {
 
     // --- GRID LOGIC ---
     buildGrid(pairs) {
+        // Ensure we only take 6 pairs
+        const selectedPairs = pairs.slice(0, 6);
         let cards = [];
-        pairs.forEach((p, i) => {
+        
+        selectedPairs.forEach((p, i) => {
             cards.push({ id: i, text: p.t, type: 'TERM' });
             cards.push({ id: i, text: p.d, type: 'DEF' });
         });
@@ -160,7 +171,7 @@ class MemoryGame {
         this.els.grid.innerHTML = '';
         cards.forEach((card, index) => {
             const el = document.createElement('div');
-            el.className = 'card-container w-full h-24 md:h-32';
+            el.className = 'card-container w-full h-20 md:h-32';
             el.innerHTML = `
                 <div class="card" data-index="${index}" data-id="${card.id}">
                     <div class="card-face face-front">
@@ -193,6 +204,14 @@ class MemoryGame {
     checkMatch() {
         this.state.locked = true;
         const [i1, i2] = this.state.flipped;
+        
+        // Safety check
+        if (i1 === undefined || i2 === undefined) {
+             this.state.flipped = [];
+             this.state.locked = false;
+             return;
+        }
+
         const c1 = this.state.cards[i1];
         const c2 = this.state.cards[i2];
         const el1 = document.querySelector(`.card[data-index="${i1}"]`);
@@ -214,15 +233,16 @@ class MemoryGame {
 
             // Effects
             setTimeout(() => {
-                el1.classList.add('matched');
-                el2.classList.add('matched');
+                if(el1) el1.classList.add('matched');
+                if(el2) el2.classList.add('matched');
                 
                 // Get screen coordinates for particles
-                const rect = el1.getBoundingClientRect();
-                const rect2 = el2.getBoundingClientRect();
-                
-                this.fx.spawnBloom(rect.left + rect.width/2, rect.top + rect.height/2);
-                this.fx.spawnBloom(rect2.left + rect2.width/2, rect2.top + rect2.height/2);
+                if(el1 && el2) {
+                    const rect = el1.getBoundingClientRect();
+                    const rect2 = el2.getBoundingClientRect();
+                    this.fx.spawnBloom(rect.left + rect.width/2, rect.top + rect.height/2);
+                    this.fx.spawnBloom(rect2.left + rect2.width/2, rect2.top + rect2.height/2);
+                }
                 
                 this.fx.growPlant(); // Grow background
                 this.fx.playMatchSound(this.state.combo);
@@ -240,12 +260,13 @@ class MemoryGame {
             this.state.combo = 0;
             this.fx.playErrorSound();
             
+            // Reduced waiting time from 1000ms to 700ms for better flow
             setTimeout(() => {
-                el1.classList.remove('flipped');
-                el2.classList.remove('flipped');
+                if(el1) el1.classList.remove('flipped');
+                if(el2) el2.classList.remove('flipped');
                 this.state.flipped = [];
                 this.state.locked = false;
-            }, 1000);
+            }, 700);
         }
     }
 
@@ -256,7 +277,7 @@ class MemoryGame {
             this.els.victoryScreen.classList.remove('hidden-fade');
             // Massive bloom
             for(let i=0; i<10; i++) setTimeout(() => this.fx.growPlant(), i*200);
-        }, 1000);
+        }, 800);
     }
 }
 

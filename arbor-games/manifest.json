@@ -17,5 +17,14 @@
     "path": "./arbor-games/memory/index.html",
     "author": "Arbor Official",
     "version": "1.0.0"
+  },
+  {
+    "id": "hello-world",
+    "name": "Hello World",
+    "icon": "👋",
+    "description": "Ejemplo básico y responsive para desarrolladores.",
+    "path": "./arbor-games/hello-world/index.html",
+    "author": "Arbor Official",
+    "version": "1.0.0"
   }
 ]
