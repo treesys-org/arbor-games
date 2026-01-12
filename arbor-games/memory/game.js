@@ -1,4 +1,5 @@
 
+
 /**
  * GAME.JS
  * Core Logic for Memory Garden: Overgrowth
@@ -69,7 +70,7 @@ class MemoryGame {
         this.els.topic.innerText = content.title;
         this.els.topic.classList.remove('opacity-0');
 
-        // 3. Generate Cards via AI (with timeout)
+        // 3. Generate Cards via AI (No timeout)
         const pairs = await this.generatePairs(content.text);
         
         if (pairs && pairs.length > 0) {
@@ -110,17 +111,25 @@ class MemoryGame {
         Do NOT wrap in markdown code blocks.
         `;
 
-        // Timeout Promise to prevent hanging forever
-        const timeout = new Promise((resolve) => setTimeout(() => resolve(null), 5000));
-
+        // Logic without timeout: waits indefinitely for AI
         const aiRequest = async () => {
             try {
                 if (window.Arbor && window.Arbor.ai) {
+                    console.log("Sending prompt to AI...");
                     const response = await window.Arbor.ai.chat([{ role: "user", content: prompt }]);
-                    // Robust JSON Extraction
+                    console.log("AI Raw Response:", response);
+                    
+                    if (!response) return null;
+
+                    // Robust JSON Extraction (Matching Classroom implementation)
                     const cleanResponse = response.replace(/```json/g, '').replace(/```/g, '');
                     const match = cleanResponse.match(/\[[\s\S]*\]/);
-                    if (match) return JSON.parse(match[0]);
+                    
+                    if (match) {
+                        return JSON.parse(match[0]);
+                    }
+                    // Try parsing the whole thing if regex fails
+                    return JSON.parse(cleanResponse);
                 } 
                 return null;
             } catch (e) {
@@ -129,7 +138,7 @@ class MemoryGame {
             }
         };
 
-        return Promise.race([aiRequest(), timeout]);
+        return await aiRequest();
     }
 
     getFallbackPairs() {

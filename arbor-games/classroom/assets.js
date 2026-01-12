@@ -1,3 +1,4 @@
+
 /**
  * ASSETS.JS
  * Procedural Pixel Art Generator
@@ -90,13 +91,20 @@ export class SpriteGen {
 
     static generateDesk() {
         const { c, ctx } = this.createCanvas(80, 60);
+        
+        // Body (Solid wood)
         ctx.fillStyle = '#78350f';
         ctx.fillRect(0, 10, 80, 50);
+        
+        // Desktop Surface
         ctx.fillStyle = '#92400e'; 
         ctx.fillRect(0, 0, 80, 15);
+        
+        // Shadow/Detail underneath rim
         ctx.fillStyle = '#000';
         ctx.globalAlpha = 0.2;
         ctx.fillRect(5, 15, 70, 2);
+        
         return c;
     }
 }

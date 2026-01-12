@@ -1,3 +1,4 @@
+
 /**
  * ENGINE.JS
  * The core logic for Arbor Classroom.
@@ -33,7 +34,8 @@ export class GameEngine {
             { id: 'you', name: 'You', color: Colors.player, score: 0, x: 600, y: 380, sprite: this.assets.studentPlayer }
         ];
 
-        this.professor = { x: 700, y: 180, sprite: this.assets.prof };
+        // Fix: Professor Y moved from 180 (floating) to 350 (floor level)
+        this.professor = { x: 700, y: 350, sprite: this.assets.prof };
         this.particles = [];
         
         // Game Data
@@ -67,6 +69,7 @@ export class GameEngine {
     }
 
     setupInput() {
+        // KEYBOARD
         document.addEventListener('keydown', (e) => {
             if (e.key === ' ' && this.state === 'DIALOGUE') {
                 this.advanceDialogue();
@@ -74,6 +77,13 @@ export class GameEngine {
             if (e.key === 'Enter') {
                 if (this.state === 'DIALOGUE') this.advanceDialogue();
                 if (this.state === 'INPUT_TEXT') this.submitText();
+            }
+        });
+
+        // TOUCH/CLICK (For Mobile 'Spacebar' replacement)
+        this.ui.dialogueBox.addEventListener('click', () => {
+             if (this.state === 'DIALOGUE') {
+                this.advanceDialogue();
             }
         });
 
@@ -149,6 +159,9 @@ export class GameEngine {
     draw() {
         const ctx = this.ctx;
         
+        // FIX: Explicit Clear to prevent text artifacts/saturation
+        ctx.clearRect(0, 0, this.width, this.height);
+
         // 1. Background
         ctx.drawImage(this.assets.bg, 0, 0);
 
@@ -167,10 +180,7 @@ export class GameEngine {
 
         // 5. Students & Desks
         this.students.forEach(s => {
-            // Desk
-            ctx.drawImage(this.assets.desk, s.x - 60, s.y - 10, 120, 90);
-            
-            // Student
+            // FIX: Draw Student FIRST (Behind desk)
             ctx.save();
             ctx.translate(s.x, s.yDraw);
             
@@ -186,6 +196,9 @@ export class GameEngine {
             ctx.scale(2, 2);
             ctx.drawImage(s.sprite, -32, -40);
             ctx.restore();
+
+            // FIX: Draw Desk SECOND (In front of student)
+            ctx.drawImage(this.assets.desk, s.x - 60, s.y - 10, 120, 90);
         });
 
         // 6. Particles
@@ -294,7 +307,7 @@ export class GameEngine {
         }
         
         // 2. Generate
-        await this.showDialogue("PROFESSOR", "I have wiped the board. Pay attention to the new topics.", true);
+        await this.showDialogue("PROFESSOR", "I have wiped the board. Pay attention.", true);
         
         const prompt = `
         Context: "${rawText.substring(0, 800)}".
