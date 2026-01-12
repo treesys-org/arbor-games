@@ -1,0 +1,38 @@
+[
+    {
+        "id": "classroom",
+        "name": "Classroom Simulator",
+        "description": "Simulador de aula RPG. Interact\u00faa con el profesor y alumnos usando IA local.",
+        "icon": "\ud83d\udc68\u200d\ud83c\udfeb",
+        "path": "./arbor-games/classroom/index.html",
+        "version": "1.0.0",
+        "author": "Arbor Official"
+    },
+    {
+        "id": "hello-world",
+        "name": "Hello World: Bridge v2",
+        "description": "Plantilla de diagn\u00f3stico para desarrolladores. Demuestra la integraci\u00f3n con Arbor.user, Storage, AI y Content Injection.",
+        "icon": "\ud83d\udc4b",
+        "path": "./arbor-games/hello-world/index.html",
+        "version": "2.0.0",
+        "author": "Arbor Official"
+    },
+    {
+        "id": "memory",
+        "name": "Memory Garden: Overgrowth",
+        "description": "Una experiencia arcade visual. Empareja conceptos para cultivar un jard\u00edn procedural en tiempo real. Sistema de combos y audio sint\u00e9tico.",
+        "icon": "\ud83c\udf3a",
+        "path": "./arbor-games/memory/index.html",
+        "version": "2.0.0",
+        "author": "Arbor Official"
+    },
+    {
+        "id": "primer-trabajo",
+        "name": "Primer Trabajo",
+        "description": "Simula tu primer d\u00eda en un nuevo trabajo basado en lo que est\u00e1s estudiando. Supera la entrevista y ayuda a tus clientes.",
+        "icon": "\ud83d\udcbc",
+        "path": "./arbor-games/primer-trabajo/index.html",
+        "version": "1.0.0",
+        "author": "Arbor Official"
+    }
+]
