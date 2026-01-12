@@ -293,7 +293,7 @@ export class GameEngine {
         await this.showDialogue("SYSTEM", "Loading New Curriculum...", false);
 
         // 1. Get Context
-        let rawText = "Mathematics: Basic Algebra and Geometry.";
+        let rawText = null;
         let hasArbor = false;
         
         if (window.Arbor && window.Arbor.content) {
@@ -303,9 +303,14 @@ export class GameEngine {
                     rawText = lesson.text;
                     hasArbor = true;
                 }
-            } catch(e) { console.warn("Arbor offline, using mock."); }
+            } catch(e) { console.warn("Arbor offline.", e); }
         }
         
+        if (!rawText) {
+             await this.showDialogue("SYSTEM", "CRITICAL ERROR: NO CONTEXT SOURCE.", true);
+             return;
+        }
+
         // 2. Generate
         await this.showDialogue("PROFESSOR", "I have wiped the board. Pay attention.", true);
         
@@ -333,14 +338,8 @@ export class GameEngine {
             }
 
         } catch(e) {
-            console.log("Using Fallback Data due to: " + e.message);
-            await this.showDialogue("SYSTEM", "AI Connection Unstable. Using textbook.", true);
-            this.lessonData.concepts = [
-                { topic: "Logic", q: "Is 'False' True?", correct: "No", wrong: "Yes", status: 'pending' },
-                { topic: "Math", q: "10 * 10?", correct: "100", wrong: "1000", status: 'pending' },
-                { topic: "History", q: "First moon landing?", correct: "1969", wrong: "1999", status: 'pending' }
-            ];
-            await this.runRound();
+            console.error("AI Error: " + e.message);
+            await this.showDialogue("SYSTEM", "SYSTEM FAILURE. NO BACKUP PROTOCOL.", true);
         }
     }
 

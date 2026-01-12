@@ -1,5 +1,6 @@
 
 
+
 /**
  * GAME.JS
  * Core Logic for Memory Garden: Overgrowth
@@ -64,25 +65,24 @@ class MemoryGame {
         // 1. Initialize Audio (Must be done on user gesture)
         await this.fx.initAudio();
 
-        // 2. Fetch Content
-        const content = await this.fetchContent();
-        
-        this.els.topic.innerText = content.title;
-        this.els.topic.classList.remove('opacity-0');
+        try {
+            // 2. Fetch Content
+            const content = await this.fetchContent();
+            
+            this.els.topic.innerText = content.title;
+            this.els.topic.classList.remove('opacity-0');
 
-        // 3. Generate Cards via AI (No timeout)
-        const pairs = await this.generatePairs(content.text);
-        
-        if (pairs && pairs.length > 0) {
-            this.buildGrid(pairs);
-            this.startGame();
-        } else {
-            // Absolute fallback to ensure game is playable
-            this.handleError("Synthesis failed. Using cached crystals.");
-            setTimeout(() => {
-                this.buildGrid(this.getFallbackPairs());
+            // 3. Generate Cards via AI (with 60s safety timeout)
+            const pairs = await this.generatePairs(content.text);
+            
+            if (pairs && pairs.length > 0) {
+                this.buildGrid(pairs);
                 this.startGame();
-            }, 1500);
+            } else {
+                throw new Error("Synthesis failed. No data returned from AI.");
+            }
+        } catch (e) {
+            this.handleError(e.message || "Initialization Failed. Check Arbor Context.");
         }
     }
 
@@ -94,11 +94,8 @@ class MemoryGame {
                 if (lesson) return { title: lesson.title, text: lesson.text };
             } catch (e) { console.warn("Arbor Bridge Error", e); }
         }
-        // Fallback for testing/standalone
-        return { 
-            title: "Demo Mode: Botany", 
-            text: "Photosynthesis is the process by which plants use sunlight, water, and carbon dioxide to create oxygen and energy in the form of sugar. Chlorophyll gives plants their green color." 
-        };
+        // No Fallback
+        throw new Error("No Context Source Found (Arbor Bridge Offline)");
     }
 
     async generatePairs(text) {
@@ -111,7 +108,7 @@ class MemoryGame {
         Do NOT wrap in markdown code blocks.
         `;
 
-        // Logic without timeout: waits indefinitely for AI
+        // 1. The Actual AI Request
         const aiRequest = async () => {
             try {
                 if (window.Arbor && window.Arbor.ai) {
@@ -138,18 +135,14 @@ class MemoryGame {
             }
         };
 
-        return await aiRequest();
-    }
+        // 2. The Safety Timeout (60 Seconds)
+        const timeout = new Promise((resolve) => setTimeout(() => {
+            console.warn("AI Response Timed Out (60s).");
+            resolve(null); 
+        }, 60000));
 
-    getFallbackPairs() {
-        return [
-            {t: "Photosynthesis", d: "Creating energy from sunlight"},
-            {t: "Chlorophyll", d: "Pigment making plants green"},
-            {t: "Stomata", d: "Pores for gas exchange"},
-            {t: "Xylem", d: "Transports water up"},
-            {t: "Phloem", d: "Transports sugars down"},
-            {t: "Roots", d: "Absorb water and nutrients"}
-        ];
+        // 3. Race: Whichever finishes first wins
+        return Promise.race([aiRequest(), timeout]);
     }
 
     handleError(msg) {
