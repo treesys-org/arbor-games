@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arbor: Primer Trabajo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        .game-container { max-width: 600px; margin: auto; }
+        .hidden { display: none; }
+        .btn {
+            display: block; width: 100%; text-align: center;
+            padding: 0.75rem 1rem; border-radius: 0.5rem;
+            font-weight: 600; transition: all 0.2s;
+            cursor: pointer; border: none;
+        }
+        .btn-primary { background-color: #2563eb; color: white; }
+        .btn-primary:hover { background-color: #1d4ed8; }
+        .btn-secondary { background-color: #e2e8f0; color: #334155; }
+        .btn-secondary:hover { background-color: #cbd5e1; }
+        .chat-bubble { padding: 0.75rem 1rem; border-radius: 1rem; max-width: 80%; margin-bottom: 0.5rem; line-height: 1.5; }
+        .chat-bubble-ai { background-color: #e2e8f0; border-bottom-left-radius: 0.25rem; align-self: flex-start; }
+        .chat-bubble-player { background-color: #2563eb; color: white; border-bottom-right-radius: 0.25rem; align-self: flex-end; }
+        .loading-dots span {
+            animation: blink 1.4s infinite both;
+            height: 8px; width: 8px;
+            background-color: #94a3b8;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .loading-dots span:nth-child(2) { animation-delay: .2s; }
+        .loading-dots span:nth-child(3) { animation-delay: .4s; }
+        @keyframes blink { 0% { opacity: .2; } 20% { opacity: 1; } 100% { opacity: .2; } }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="game-container">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-black text-slate-800">Primer Trabajo</h1>
+            <p id="arbor-status" class="text-sm text-slate-500 mt-1">Conectando con ArborOS...</p>
+            <div id="player-wallet" class="mt-4 bg-green-100 border border-green-300 text-green-800 rounded-lg p-2 inline-block text-sm">
+                <span class="font-bold">Balance:</span> <span id="player-money" class="font-mono font-bold">$0</span>
+            </div>
+        </header>
+
+        <main id="game-content">
+
+            <!-- PANTALLA DE CARGA INICIAL -->
+            <div id="loading-screen">
+                <div class="bg-white p-8 rounded-xl shadow-md text-center">
+                    <div class="loading-dots mb-4"><span></span><span></span><span></span></div>
+                    <p id="loading-text" class="text-slate-600 font-medium">Consultando tu currículum...</p>
+                </div>
+            </div>
+
+            <!-- PANTALLA DE OFERTA DE TRABAJO -->
+            <div id="job-offer-screen" class="hidden">
+                <div class="bg-white p-8 rounded-xl shadow-md text-center">
+                    <div class="text-5xl mb-4">💼</div>
+                    <h2 class="text-sm font-bold text-blue-600 uppercase tracking-wider">OFERTA DE TRABAJO</h2>
+                    <p id="job-title" class="text-2xl font-bold text-slate-800 my-2">...</p>
+                    <p id="job-description" class="text-slate-500 mb-6">...</p>
+                    <button id="btn-start-interview" class="btn btn-primary">Empezar Entrevista</button>
+                </div>
+            </div>
+
+            <!-- PANTALLA DE ENTREVISTA -->
+            <div id="interview-screen" class="hidden">
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div id="chat-container" class="h-80 overflow-y-auto mb-4 flex flex-col p-2 bg-slate-50 rounded-lg">
+                        <!-- Los mensajes del chat se insertan aquí -->
+                    </div>
+                    <form id="interview-form" class="flex items-center gap-2">
+                        <input type="text" id="interview-input" placeholder="Escribe tu respuesta..." class="flex-1 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition">
+                        <button type="submit" class="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd" /></svg>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- PANTALLA DE DÍA DE TRABAJO -->
+            <div id="workday-screen" class="hidden">
+                <div class="bg-white p-8 rounded-xl shadow-md space-y-6">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">Tu Primer Día</h2>
+                        <p class="text-sm text-slate-500">¡Bienvenido/a a bordo!</p>
+                    </div>
+                    <div id="work-scenario">
+                        <div class="border-l-4 border-amber-400 pl-4 py-2 bg-amber-50 rounded-r-lg">
+                            <p class="font-bold text-amber-900">Boby, tu compañero:</p>
+                            <p id="boby-dialogue" class="text-amber-800">...</p>
+                        </div>
+                        <div class="my-6 w-full h-px bg-slate-200"></div>
+                        <div class="border-l-4 border-indigo-400 pl-4 py-2 bg-indigo-50 rounded-r-lg">
+                            <p class="font-bold text-indigo-900"><span id="client-name">Micaela</span>, la clienta:</p>
+                            <p id="micaela-problem" class="text-indigo-800">...</p>
+                        </div>
+                    </div>
+                    <div id="work-choices" class="space-y-3">
+                        <h3 class="text-center font-semibold text-slate-600">¿Qué harás?</h3>
+                        <!-- Botones de opción se insertan aquí -->
+                    </div>
+                </div>
+            </div>
+
+             <!-- PANTALLA FINAL -->
+             <div id="end-screen" class="hidden">
+                <div class="bg-white p-8 rounded-xl shadow-md text-center">
+                    <div id="end-icon" class="text-5xl mb-4">🎉</div>
+                    <h2 class="text-2xl font-bold text-slate-800">Fin de la Jornada</h2>
+                    <p id="money-earned" class="text-lg font-bold text-green-600 my-2"></p>
+                    <p id="end-outcome" class="text-slate-600 my-4">...</p>
+                    <button id="btn-restart" class="btn btn-primary">Jugar de Nuevo</button>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script type="module" src="./game.js"></script>
+
+</body>
+</html>
