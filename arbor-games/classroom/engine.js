@@ -249,8 +249,9 @@ class GameEngine {
 
     async loadContent() {
         this.clearBoard();
-        this.state = 'GENERATING';
+        this.state = 'DIALOGUE';
         await this.showDialogue("SYSTEM", "Loading New Curriculum from Arbor Bridge...", false);
+        this.state = 'GENERATING';
         
         try {
             if (!window.Arbor || !window.Arbor.ai || !window.Arbor.content) {
