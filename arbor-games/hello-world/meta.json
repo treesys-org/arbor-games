@@ -1,0 +1,7 @@
+{
+  "name": "Hello World: Diagnostics",
+  "description": "Herramienta de diagnóstico para desarrolladores. Muestra los parámetros de contexto recibidos.",
+  "icon": "👋",
+  "version": "1.0.0",
+  "author": "Arbor Official"
+}

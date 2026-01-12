@@ -99,6 +99,7 @@ export class GameEngine {
             this.textResolver(val);
             this.ui.textOverlay.style.display = 'none';
             this.ui.inputField.value = ''; // Clean input
+            this.ui.inputField.blur(); // Close keyboard on mobile
         }
     }
 
@@ -233,6 +234,7 @@ export class GameEngine {
         // Header
         ctx.fillStyle = '#fbbf24';
         ctx.font = '16px VT323';
+        ctx.textAlign = 'left';
         ctx.fillText("CLASS RANK", x + 10, y + 25);
         ctx.beginPath(); ctx.moveTo(x, y+35); ctx.lineTo(x+w, y+35); ctx.stroke();
 
@@ -268,7 +270,6 @@ export class GameEngine {
         this.ui.dialogueBox.style.display = 'none';
         this.ui.overlay.style.display = 'none';
         this.ui.textOverlay.style.display = 'none';
-        console.log("Context Cleaned. Board Erased.");
     }
 
     async loadContent() {
@@ -280,43 +281,51 @@ export class GameEngine {
 
         // 1. Get Context
         let rawText = "Mathematics: Basic Algebra and Geometry.";
+        let hasArbor = false;
+        
         if (window.Arbor && window.Arbor.content) {
             try {
                 const lesson = await window.Arbor.content.getNext();
-                if (lesson && lesson.text) rawText = lesson.text;
+                if (lesson && lesson.text) {
+                    rawText = lesson.text;
+                    hasArbor = true;
+                }
             } catch(e) { console.warn("Arbor offline, using mock."); }
         }
         
         // 2. Generate
         await this.showDialogue("PROFESSOR", "I have wiped the board. Pay attention to the new topics.", true);
         
-        // Request shorter answers for UI buttons
         const prompt = `
-        Context: "${rawText.substring(0, 1000)}".
+        Context: "${rawText.substring(0, 800)}".
         Generate 3 distinct topics. For each topic, create a short question, a CORRECT answer (max 3 words), and a PLAUSIBLE WRONG answer (max 3 words).
-        JSON Format:
+        Return ONLY valid JSON array:
         [
             { "topic": "Short Topic Name", "q": "Question text", "correct": "Correct Answer", "wrong": "Wrong Answer" }
         ]
         `;
 
         try {
-            const aiRes = await window.Arbor.ai.chat([{role: "user", content: prompt}]);
-            const json = this.parseJSON(aiRes);
-            
+            let json = null;
+            if (hasArbor && window.Arbor.ai) {
+                const aiRes = await window.Arbor.ai.chat([{role: "user", content: prompt}]);
+                json = this.parseJSON(aiRes);
+            }
+
             if (json && Array.isArray(json)) {
                 this.lessonData.concepts = json.map(j => ({ ...j, status: 'pending' }));
                 await this.runRound();
             } else {
-                throw new Error("Invalid AI format");
+                throw new Error("Invalid AI format or Offline");
             }
 
         } catch(e) {
-            this.showDialogue("SYSTEM", "AI Error. Using fallback data.", true);
+            console.log("Using Fallback Data due to: " + e.message);
+            await this.showDialogue("SYSTEM", "AI Connection Unstable. Using textbook.", true);
             this.lessonData.concepts = [
-                { topic: "Algebra", q: "What is 2x = 10?", correct: "x = 5", wrong: "x = 20", status: 'pending' },
-                { topic: "Geometry", q: "Sides of a triangle?", correct: "3", wrong: "4", status: 'pending' },
-                { topic: "History", q: "Who built the pyramids?", correct: "Egyptians", wrong: "Aliens", status: 'pending' }
+                { topic: "Logic", q: "Is 'False' True?", correct: "No", wrong: "Yes", status: 'pending' },
+                { topic: "Math", q: "10 * 10?", correct: "100", wrong: "1000", status: 'pending' },
+                { topic: "History", q: "First moon landing?", correct: "1969", wrong: "1999", status: 'pending' }
             ];
             await this.runRound();
         }
@@ -352,6 +361,7 @@ export class GameEngine {
             const cleanPlayer = playerText.toLowerCase();
             const cleanCorrect = concept.correct.toLowerCase();
             
+            // Simple inclusion check
             const isCorrect = cleanPlayer.includes(cleanCorrect) || cleanCorrect.includes(cleanPlayer);
 
             if (isCorrect) {
@@ -424,13 +434,18 @@ export class GameEngine {
     // --- UTILS ---
 
     parseJSON(str) {
+        if (!str) return null;
         try {
-            // Find array bounds
-            const start = str.indexOf('[');
-            const end = str.lastIndexOf(']');
-            if (start === -1 || end === -1) return null;
-            return JSON.parse(str.substring(start, end + 1));
-        } catch (e) { return null; }
+            // Robust Regex to find the first JSON array in the string
+            const match = str.match(/\[.*\]/s);
+            if (match) {
+                return JSON.parse(match[0]);
+            }
+            return JSON.parse(str);
+        } catch (e) { 
+            console.error("JSON Parse Error", e);
+            return null; 
+        }
     }
 
     waitForInput() {
@@ -460,11 +475,15 @@ export class GameEngine {
             this.ui.dialogueText.innerHTML = ''; 
             
             let i = 0;
-            const interval = setInterval(() => {
+            // Clear any existing interval if user clicks fast
+            if (this.currentTyping) clearInterval(this.currentTyping);
+
+            this.currentTyping = setInterval(() => {
                 this.ui.dialogueText.textContent += text.charAt(i);
                 i++;
                 if (i >= text.length) {
-                    clearInterval(interval);
+                    clearInterval(this.currentTyping);
+                    this.currentTyping = null;
                     if (auto) {
                         setTimeout(() => resolve(), 1500);
                     } else {
@@ -476,13 +495,14 @@ export class GameEngine {
     }
 
     advanceDialogue() {
+        if (this.currentTyping) {
+            // Instant finish if typing
+            // (Not implemented for simplicity, but good practice)
+        }
+        
         if (this.advanceCallback) {
             const cb = this.advanceCallback;
             this.advanceCallback = null;
-            // Only hide if not transitioning to input immediately
-            if (this.state !== 'INPUT' && this.state !== 'INPUT_TEXT') {
-                // this.ui.dialogueBox.style.display = 'none';
-            }
             cb();
         }
     }

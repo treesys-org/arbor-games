@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arbor: Hello World</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Fira Code', monospace; background-color: #0d1117; color: #c9d1d9; }
+        .blink { animation: blink 1s step-end infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+        .scanline {
+            width: 100%; height: 2px;
+            background: rgba(46, 160, 67, 0.1);
+            position: fixed; top: 0; left: 0;
+            animation: scan 3s linear infinite; pointer-events: none;
+        }
+        @keyframes scan { 0% { top: 0%; } 100% { top: 100%; } }
+    </style>
+</head>
+<body class="h-screen flex flex-col items-center justify-center p-4 overflow-hidden">
+
+    <div class="scanline"></div>
+
+    <div class="max-w-2xl w-full bg-[#161b22] border border-[#30363d] rounded-lg shadow-2xl overflow-hidden relative">
+        <!-- Header -->
+        <div class="bg-[#0d1117] p-3 border-b border-[#30363d] flex items-center justify-between">
+            <div class="flex space-x-2">
+                <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                <div class="w-3 h-3 rounded-full bg-green-500"></div>
+            </div>
+            <div class="text-xs text-gray-500 font-bold">bash — 80x24</div>
+        </div>
+
+        <!-- Terminal Content -->
+        <div class="p-6 space-y-4">
+            
+            <div>
+                <span class="text-green-500 font-bold">user@arbor</span>:<span class="text-blue-500">~/games/hello-world</span>$ <span class="typing-effect">./init_sequence.sh</span>
+            </div>
+
+            <div id="output" class="space-y-2 text-sm">
+                <p class="text-gray-400">> Initializing Arbor Interface...</p>
+                <p class="text-gray-400">> Reading Context Parameters...</p>
+            </div>
+
+            <!-- Param Table -->
+            <div id="params-container" class="hidden mt-4 bg-black/50 p-4 rounded border border-[#30363d]">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-gray-500 border-b border-[#30363d]">
+                            <th class="py-2">PARAMETER</th>
+                            <th class="py-2">VALUE</th>
+                        </tr>
+                    </thead>
+                    <tbody id="params-table" class="text-green-400">
+                        <!-- JS Injected -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Interactive Area -->
+            <div id="interactive-area" class="hidden pt-4 border-t border-[#30363d] mt-4">
+                <p class="mb-4">System ready. Awaiting input acknowledgment.</p>
+                <button id="btn-ack" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded transition-colors text-xs border border-green-400 shadow-[0_0_10px_rgba(74,222,128,0.2)]">
+                    [ ACKNOWLEDGE ]
+                </button>
+            </div>
+
+            <div id="cursor-line" class="hidden mt-4">
+                <span class="text-green-500 font-bold">user@arbor</span>:<span class="text-blue-500">~</span>$ <span class="blink">_</span>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- LOGIC ---
+        const output = document.getElementById('output');
+        const table = document.getElementById('params-table');
+        const container = document.getElementById('params-container');
+        const interactive = document.getElementById('interactive-area');
+        const cursor = document.getElementById('cursor-line');
+        const btn = document.getElementById('btn-ack');
+
+        // 1. Read URL Parameters
+        const params = new URLSearchParams(window.location.search);
+        const data = {
+            Source: params.get('source') || 'N/A (Standalone)',
+            Module: params.get('module') || 'root',
+            Lang: params.get('lang') || 'en',
+            Theme: params.get('theme') || 'dark'
+        };
+
+        // 2. Typewriter Effect Helper
+        const log = (msg, color = 'text-gray-300') => {
+            const p = document.createElement('p');
+            p.className = `${color}`;
+            p.innerText = '> ' + msg;
+            output.appendChild(p);
+        };
+
+        // 3. Sequence
+        setTimeout(() => {
+            log('Connection established.', 'text-green-400');
+            
+            // Render Table
+            for (const [key, val] of Object.entries(data)) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td class="py-1 text-gray-500 font-mono">${key.toUpperCase()}</td><td class="py-1 font-mono break-all">${val}</td>`;
+                table.appendChild(tr);
+            }
+            container.classList.remove('hidden');
+            
+            setTimeout(() => {
+                interactive.classList.remove('hidden');
+            }, 800);
+
+        }, 1000);
+
+        // 4. Interaction
+        btn.addEventListener('click', () => {
+            interactive.innerHTML = '<p class="text-green-500">Acknowledgment Received. Session Active.</p>';
+            cursor.classList.remove('hidden');
+            
+            // Fun confetti logs
+            setInterval(() => {
+                const msgs = [
+                    "Monitoring heartbeat...",
+                    "Context sync: STABLE",
+                    "Reticulating splines...",
+                    "Waiting for user intent..."
+                ];
+                const msg = msgs[Math.floor(Math.random() * msgs.length)];
+                if(Math.random() > 0.7) log(msg, 'text-gray-600 text-xs');
+                
+                // Auto scroll
+                const card = document.querySelector('.max-w-2xl');
+                // card.scrollTop = card.scrollHeight; 
+            }, 2000);
+        });
+
+    </script>
+</body>
+</html>
