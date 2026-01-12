@@ -1,7 +1,7 @@
 {
-  "name": "Memory Garden",
-  "description": "Juego de memoria contextual. Conecta conceptos extraídos de la lección.",
-  "icon": "🧠",
-  "version": "1.0.0",
+  "name": "Memory Garden: Overgrowth",
+  "description": "Una experiencia arcade visual. Empareja conceptos para cultivar un jardín procedural en tiempo real. Sistema de combos y audio sintético.",
+  "icon": "🌺",
+  "version": "2.0.0",
   "author": "Arbor Official"
 }
