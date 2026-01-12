@@ -23,8 +23,6 @@ export class FX {
         this.canvas.height = window.innerHeight;
     }
 
-    // --- AUDIO SYNTHESIS ---
-    // Minimalistic synth to avoid external assets
     async initAudio() {
         if (!window.AudioContext) return;
         this.audioCtx = new window.AudioContext();
@@ -54,11 +52,10 @@ export class FX {
     }
 
     playMatchSound(combo) {
-        // Major chord arpeggio based on combo
         const base = 220 * (1 + (combo * 0.1));
         setTimeout(() => this.playTone(base, 'triangle', 0.3, 0.1), 0);
-        setTimeout(() => this.playTone(base * 1.25, 'triangle', 0.3, 0.1), 100); // Third
-        setTimeout(() => this.playTone(base * 1.5, 'triangle', 0.4, 0.1), 200); // Fifth
+        setTimeout(() => this.playTone(base * 1.25, 'triangle', 0.3, 0.1), 100);
+        setTimeout(() => this.playTone(base * 1.5, 'triangle', 0.4, 0.1), 200);
     }
 
     playErrorSound() {
@@ -71,8 +68,6 @@ export class FX {
             setTimeout(() => this.playMatchSound(i+2), t);
         });
     }
-
-    // --- VISUALS ---
 
     spawnBloom(x, y) {
         const count = 15;
@@ -89,7 +84,6 @@ export class FX {
     }
 
     growPlant() {
-        // Start a recursive branch at bottom of screen
         const startX = Math.random() * this.canvas.width;
         this.plants.push({
             x: startX,
@@ -103,17 +97,15 @@ export class FX {
 
     renderLoop() {
         const ctx = this.ctx;
-        // Trail effect
         ctx.fillStyle = 'rgba(15, 23, 42, 0.2)'; 
         ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Render Particles
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
             p.x += p.vx;
             p.y += p.vy;
             p.life -= 0.02;
-            p.vy += 0.1; // Gravity
+            p.vy += 0.1;
 
             ctx.fillStyle = p.color;
             ctx.globalAlpha = p.life;
@@ -124,7 +116,6 @@ export class FX {
             if (p.life <= 0) this.particles.splice(i, 1);
         }
 
-        // Render & Grow Plants
         ctx.strokeStyle = '#10b981';
         ctx.lineCap = 'round';
         ctx.globalAlpha = 0.6;
@@ -132,7 +123,6 @@ export class FX {
         for (let i = this.plants.length - 1; i >= 0; i--) {
             const p = this.plants[i];
             
-            // Growth speed
             const speed = 5;
             const targetX = p.x + Math.cos(p.angle) * speed;
             const targetY = p.y + Math.sin(p.angle) * speed;
@@ -146,7 +136,6 @@ export class FX {
             p.x = targetX;
             p.y = targetY;
 
-            // Random chance to branch
             if (Math.random() < 0.05 && p.depth < p.maxDepth) {
                 this.plants.push({
                     x: p.x, y: p.y,
@@ -157,13 +146,10 @@ export class FX {
                 });
             }
             
-            // Chance to die/stop
             if (Math.random() < 0.02) {
-                // Bloom a flower at end
                 this.spawnBloom(p.x, p.y);
                 this.plants.splice(i, 1);
             }
-            // Screen bounds kill
             else if (p.y < 0 || p.x < 0 || p.x > this.canvas.width) {
                  this.plants.splice(i, 1);
             }

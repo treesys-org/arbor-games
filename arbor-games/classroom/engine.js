@@ -5,7 +5,7 @@
  */
 import { SpriteGen, Colors } from './assets.js';
 
-export class GameEngine {
+class GameEngine {
     constructor(canvas) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
@@ -235,7 +235,6 @@ export class GameEngine {
         this.ui.textOverlay.style.display = 'none';
     }
 
-    // NEW: Helper to centralize player score updates and persistence
     addPlayerScore(amount) {
         const player = this.students[2];
         player.score += amount;
@@ -447,3 +446,39 @@ export class GameEngine {
         }
     }
 }
+
+
+// --- INITIALIZATION ---
+// Resize canvas to fit window with aspect ratio
+const canvas = document.getElementById('game-canvas');
+
+function resize() {
+    const aspect = 4/3;
+    let w = window.innerWidth;
+    let h = window.innerHeight;
+    
+    if (w / h > aspect) { 
+        w = h * aspect; 
+    } else { 
+        h = w / aspect; 
+    }
+    
+    if (h > window.innerHeight) {
+         h = window.innerHeight;
+         w = h * aspect;
+    }
+
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+}
+
+window.addEventListener('resize', resize);
+resize();
+
+// Start Game
+document.getElementById('btn-start').addEventListener('click', () => {
+    document.getElementById('start-screen').style.display = 'none';
+    const engine = new GameEngine(canvas);
+    engine.start();
+});
+

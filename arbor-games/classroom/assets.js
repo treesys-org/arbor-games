@@ -1,4 +1,3 @@
-
 /**
  * ASSETS.JS
  * Procedural Pixel Art Generator

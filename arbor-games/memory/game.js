@@ -158,7 +158,6 @@ class MemoryGame {
     startGame() {
         this.els.startScreen.classList.add('hidden-fade');
         document.getElementById('game-ui').classList.remove('hidden');
-        this.fx.playStartSound();
     }
 
     // --- GRID LOGIC ---
@@ -212,7 +211,6 @@ class MemoryGame {
         this.state.locked = true;
         const [i1, i2] = this.state.flipped;
         
-        // Safety check
         if (i1 === undefined || i2 === undefined) {
              this.state.flipped = [];
              this.state.locked = false;
@@ -225,31 +223,25 @@ class MemoryGame {
         const el2 = document.querySelector(`.card[data-index="${i2}"]`);
 
         if (c1.id === c2.id) {
-            // MATCH
             this.state.cards[i1].matched = true;
             this.state.cards[i2].matched = true;
             this.state.matchedCount += 2;
             
-            // Combo Logic
             this.state.combo++;
-            this.state.comboTimer = 100; // Refill bar
+            this.state.comboTimer = 100;
             
             const points = 100 * this.state.combo;
             this.state.score += points;
 
-            // Integrate with Arbor's XP system
             if (window.Arbor && window.Arbor.game) {
                 window.Arbor.game.addXP(points);
             }
-
             this.els.score.innerText = this.state.score;
 
-            // Effects
             setTimeout(() => {
                 if(el1) el1.classList.add('matched');
                 if(el2) el2.classList.add('matched');
                 
-                // Get screen coordinates for particles
                 if(el1 && el2) {
                     const rect = el1.getBoundingClientRect();
                     const rect2 = el2.getBoundingClientRect();
@@ -257,7 +249,7 @@ class MemoryGame {
                     this.fx.spawnBloom(rect2.left + rect2.width/2, rect2.top + rect2.height/2);
                 }
                 
-                this.fx.growPlant(); // Grow background
+                this.fx.growPlant();
                 this.fx.playMatchSound(this.state.combo);
                 
                 this.state.flipped = [];
@@ -269,11 +261,9 @@ class MemoryGame {
             }, 300);
 
         } else {
-            // NO MATCH
             this.state.combo = 0;
             this.fx.playErrorSound();
             
-            // Reduced waiting time from 1000ms to 700ms for better flow
             setTimeout(() => {
                 if(el1) el1.classList.remove('flipped');
                 if(el2) el2.classList.remove('flipped');
@@ -287,7 +277,6 @@ class MemoryGame {
         setTimeout(() => {
             this.fx.playVictorySound();
             
-            // High score logic
             if (this.state.score > this.state.highScore) {
                 this.state.highScore = this.state.score;
                 if (window.Arbor && window.Arbor.storage) {
@@ -300,11 +289,9 @@ class MemoryGame {
             
             this.els.victoryScreen.classList.remove('hidden-fade');
             
-            // Massive bloom
             for(let i=0; i<10; i++) setTimeout(() => this.fx.growPlant(), i*200);
         }, 800);
     }
 }
 
-// Start
 new MemoryGame();
