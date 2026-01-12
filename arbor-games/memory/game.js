@@ -1,6 +1,3 @@
-
-
-
 /**
  * GAME.JS
  * Core Logic for Memory Garden: Overgrowth
@@ -15,6 +12,7 @@ class MemoryGame {
             matchedCount: 0,
             locked: false,
             score: 0,
+            highScore: 0,
             combo: 0,
             comboTimer: 0
         };
@@ -25,11 +23,18 @@ class MemoryGame {
             comboBar: document.getElementById('combo-bar'),
             startScreen: document.getElementById('start-screen'),
             victoryScreen: document.getElementById('victory-screen'),
+            finalScore: document.getElementById('final-score'),
+            highScore: document.getElementById('high-score'),
             btnStart: document.getElementById('btn-start'),
             loadState: document.getElementById('loading-state'),
             loadText: document.getElementById('loading-text'),
             topic: document.getElementById('lesson-topic')
         };
+        
+        // Load high score from Arbor Storage
+        if (window.Arbor && window.Arbor.storage) {
+            this.state.highScore = window.Arbor.storage.load('high_score') || 0;
+        }
 
         this.fx = new FX();
         this.initListeners();
@@ -231,6 +236,12 @@ class MemoryGame {
             
             const points = 100 * this.state.combo;
             this.state.score += points;
+
+            // Integrate with Arbor's XP system
+            if (window.Arbor && window.Arbor.game) {
+                window.Arbor.game.addXP(points);
+            }
+
             this.els.score.innerText = this.state.score;
 
             // Effects
@@ -275,8 +286,20 @@ class MemoryGame {
     triggerVictory() {
         setTimeout(() => {
             this.fx.playVictorySound();
-            document.getElementById('final-score').innerText = this.state.score;
+            
+            // High score logic
+            if (this.state.score > this.state.highScore) {
+                this.state.highScore = this.state.score;
+                if (window.Arbor && window.Arbor.storage) {
+                    window.Arbor.storage.save('high_score', this.state.highScore);
+                }
+            }
+            
+            this.els.finalScore.innerText = this.state.score;
+            this.els.highScore.innerText = this.state.highScore;
+            
             this.els.victoryScreen.classList.remove('hidden-fade');
+            
             // Massive bloom
             for(let i=0; i<10; i++) setTimeout(() => this.fx.growPlant(), i*200);
         }, 800);

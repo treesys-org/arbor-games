@@ -1,4 +1,3 @@
-
 /**
  * ENGINE.JS
  * The core logic for Arbor Classroom.
@@ -26,38 +25,43 @@ export class GameEngine {
             studentTimmy: SpriteGen.generateStudent(Colors.timmy),
             studentPlayer: SpriteGen.generateStudent(Colors.player)
         };
+        
+        let playerName = 'You';
+        if (window.Arbor && window.Arbor.user) {
+            playerName = window.Arbor.user.username || 'You';
+        }
 
-        // Rank Mock: Lola, Timmy, Student
         this.students = [
             { id: 'lola', name: 'Lola', color: Colors.lola, score: 0, x: 200, y: 380, sprite: this.assets.studentLola },
             { id: 'timmy', name: 'Timmy', color: Colors.timmy, score: 0, x: 400, y: 380, sprite: this.assets.studentTimmy },
-            { id: 'you', name: 'You', color: Colors.player, score: 0, x: 600, y: 380, sprite: this.assets.studentPlayer }
+            { id: 'you', name: playerName, color: Colors.player, score: 0, x: 600, y: 380, sprite: this.assets.studentPlayer }
         ];
 
-        // Fix: Professor Y moved from 180 (floating) to 350 (floor level)
+        // NEW: Load persistent score for the player
+        if (window.Arbor && window.Arbor.storage) {
+            const savedScore = window.Arbor.storage.load('career_score');
+            if (savedScore) {
+                this.students[2].score = savedScore;
+            }
+        }
+
         this.professor = { x: 700, y: 350, sprite: this.assets.prof };
         this.particles = [];
         
-        // Game Data
         this.lessonData = { text: "Loading...", concepts: [] };
         this.currentRound = 0;
         this.currentQ = null;
         this.answeringStudentIndex = 0;
         this.lastJudgmentCorrect = null;
 
-        // Binds
         this.ui = {
             dialogueBox: document.getElementById('dialogue-box'),
             speakerName: document.getElementById('speaker-name'),
             dialogueText: document.getElementById('dialogue-text'),
             shoutBubble: document.getElementById('shout-bubble'),
-            
-            // Judge UI
             overlay: document.getElementById('input-overlay'),
             btnTrue: document.getElementById('btn-judge-true'),
             btnFalse: document.getElementById('btn-judge-false'),
-            
-            // Text Input UI
             textOverlay: document.getElementById('text-overlay'),
             inputField: document.getElementById('player-input'),
             btnSubmit: document.getElementById('btn-submit')
@@ -69,29 +73,20 @@ export class GameEngine {
     }
 
     setupInput() {
-        // KEYBOARD
         document.addEventListener('keydown', (e) => {
-            if (e.key === ' ' && this.state === 'DIALOGUE') {
-                this.advanceDialogue();
-            }
+            if (e.key === ' ' && this.state === 'DIALOGUE') this.advanceDialogue();
             if (e.key === 'Enter') {
                 if (this.state === 'DIALOGUE') this.advanceDialogue();
                 if (this.state === 'INPUT_TEXT') this.submitText();
             }
         });
 
-        // TOUCH/CLICK (For Mobile 'Spacebar' replacement)
         this.ui.dialogueBox.addEventListener('click', () => {
-             if (this.state === 'DIALOGUE') {
-                this.advanceDialogue();
-            }
+             if (this.state === 'DIALOGUE') this.advanceDialogue();
         });
 
-        // Judge Buttons
         this.ui.btnTrue.addEventListener('click', () => this.resolveInput(true));
         this.ui.btnFalse.addEventListener('click', () => this.resolveInput(false));
-        
-        // Text Submit
         this.ui.btnSubmit.addEventListener('click', () => this.submitText());
     }
 
@@ -105,11 +100,11 @@ export class GameEngine {
     submitText() {
         if (this.state === 'INPUT_TEXT' && this.textResolver) {
             const val = this.ui.inputField.value.trim();
-            if (val.length === 0) return; // Prevent empty submit
+            if (val.length === 0) return;
             this.textResolver(val);
             this.ui.textOverlay.style.display = 'none';
-            this.ui.inputField.value = ''; // Clean input
-            this.ui.inputField.blur(); // Close keyboard on mobile
+            this.ui.inputField.value = '';
+            this.ui.inputField.blur();
         }
     }
 
@@ -126,27 +121,17 @@ export class GameEngine {
     }
 
     update() {
-        // Animation Logic
         const bob = Math.sin(this.frame / 15) * 2;
         this.professor.yDraw = this.professor.y + bob;
 
         this.students.forEach((s, i) => {
-            // Animate only if talking or it's player's turn to answer
-            if (this.state === 'DIALOGUE_STUDENT' && this.answeringStudentIndex === i) {
+            if ((this.state === 'DIALOGUE_STUDENT' && this.answeringStudentIndex === i) || (this.state === 'PLAYER_TURN' && i === 2)) {
                 s.yDraw = s.y + Math.sin(this.frame / 5) * 5;
-            } 
-            // Also animate Player if the Professor is talking TO them
-            else if (this.state === 'PLAYER_TURN' && i === 2) {
-                s.yDraw = s.y + Math.sin(this.frame / 5) * 5;
+            } else {
+                s.yDraw = s.y + Math.sin((this.frame + i*100) / 30);
             }
-            else {
-                s.yDraw = s.y;
-            }
-            // Add slight random idle movement
-            s.yDraw += Math.sin((this.frame + i*100) / 30); 
         });
 
-        // Particle Logic
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
             p.life--;
@@ -158,50 +143,32 @@ export class GameEngine {
 
     draw() {
         const ctx = this.ctx;
-        
-        // FIX: Explicit Clear to prevent text artifacts/saturation
         ctx.clearRect(0, 0, this.width, this.height);
-
-        // 1. Background
         ctx.drawImage(this.assets.bg, 0, 0);
-
-        // 2. Blackboard Topics
         this.drawBoardContent(ctx);
-
-        // 3. Class Rank UI (Top Left)
         this.drawRank(ctx);
 
-        // 4. Professor
         ctx.save();
         ctx.translate(this.professor.x, this.professor.yDraw);
         ctx.scale(2, 2);
         ctx.drawImage(this.assets.prof, -32, -64);
         ctx.restore();
 
-        // 5. Students & Desks
         this.students.forEach(s => {
-            // FIX: Draw Student FIRST (Behind desk)
             ctx.save();
             ctx.translate(s.x, s.yDraw);
-            
-            // Highlight answering student or Player if it's their turn
             const isActing = (this.state === 'DIALOGUE_STUDENT' && this.students.indexOf(s) === this.answeringStudentIndex) || 
                              (this.state === 'PLAYER_TURN' && s.id === 'you');
-            
             if (isActing) {
                  ctx.filter = "brightness(1.2)";
                  this.drawArrow(ctx, 0, -80);
             }
-            
             ctx.scale(2, 2);
             ctx.drawImage(s.sprite, -32, -40);
             ctx.restore();
-
-            // FIX: Draw Desk SECOND (In front of student)
             ctx.drawImage(this.assets.desk, s.x - 60, s.y - 10, 120, 90);
         });
 
-        // 6. Particles
         this.particles.forEach(p => {
             ctx.fillStyle = p.color || '#fff';
             ctx.fillRect(p.x, p.y, p.size, p.size);
@@ -209,19 +176,15 @@ export class GameEngine {
     }
 
     drawBoardContent(ctx) {
-        ctx.fillStyle = '#4ade80'; // Terminal Green
+        ctx.fillStyle = Colors.term_green;
         ctx.font = '20px VT323';
         ctx.textAlign = 'left';
         ctx.fillText("CLASS TOPICS:", 180, 85);
-
         if (!this.lessonData.concepts) return;
-
         let y = 120;
         this.lessonData.concepts.forEach((c, i) => {
-            ctx.fillStyle = (i === this.currentRound) ? '#fbbf24' : '#fff'; // Highlight current
+            ctx.fillStyle = (i === this.currentRound) ? '#fbbf24' : '#fff';
             ctx.fillText(`- ${c.topic}`, 180, y);
-            
-            // Draw status marks
             if (c.status === 'correct') {
                 ctx.fillStyle = '#4ade80';
                 ctx.fillText("✔", 500, y);
@@ -234,29 +197,19 @@ export class GameEngine {
     }
 
     drawRank(ctx) {
-        const x = 20, y = 20;
-        const w = 140, h = 120;
-        
-        // Box
+        const x = 20, y = 20, w = 140, h = 120;
         ctx.fillStyle = '#111';
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 3;
         ctx.fillRect(x, y, w, h);
         ctx.strokeRect(x, y, w, h);
-
-        // Header
         ctx.fillStyle = '#fbbf24';
         ctx.font = '16px VT323';
         ctx.textAlign = 'left';
         ctx.fillText("CLASS RANK", x + 10, y + 25);
         ctx.beginPath(); ctx.moveTo(x, y+35); ctx.lineTo(x+w, y+35); ctx.stroke();
-
-        // Rows
         let rowY = y + 55;
-        // Sort by score
-        const sorted = [...this.students].sort((a,b) => b.score - a.score);
-        
-        sorted.forEach(s => {
+        [...this.students].sort((a,b) => b.score - a.score).forEach(s => {
             ctx.fillStyle = s.color;
             ctx.fillText(s.name, x + 10, rowY);
             ctx.fillStyle = '#fff';
@@ -274,10 +227,7 @@ export class GameEngine {
         ctx.fill();
     }
 
-    // --- GAMEPLAY LOGIC ---
-
     clearBoard() {
-        // "Cleaning" context to prevent saturation as requested
         this.lessonData = { text: "...", concepts: [] };
         this.currentRound = 0;
         this.ui.dialogueBox.style.display = 'none';
@@ -285,34 +235,38 @@ export class GameEngine {
         this.ui.textOverlay.style.display = 'none';
     }
 
+    // NEW: Helper to centralize player score updates and persistence
+    addPlayerScore(amount) {
+        const player = this.students[2];
+        player.score += amount;
+    
+        if (window.Arbor.game) {
+            window.Arbor.game.addXP(amount);
+        }
+        if (window.Arbor.storage) {
+            window.Arbor.storage.save('career_score', player.score);
+        }
+    }
+
     async loadContent() {
         this.clearBoard();
         this.state = 'GENERATING';
-        
-        await this.showDialogue("SYSTEM", "Clearing Context...", true);
-        await this.showDialogue("SYSTEM", "Loading New Curriculum...", false);
+        await this.showDialogue("SYSTEM", "Loading New Curriculum from Arbor Bridge...", false);
 
-        // 1. Get Context
         let rawText = null;
-        let hasArbor = false;
-        
         if (window.Arbor && window.Arbor.content) {
             try {
                 const lesson = await window.Arbor.content.getNext();
-                if (lesson && lesson.text) {
-                    rawText = lesson.text;
-                    hasArbor = true;
-                }
+                if (lesson && lesson.text) rawText = lesson.text;
             } catch(e) { console.warn("Arbor offline.", e); }
         }
         
         if (!rawText) {
-             await this.showDialogue("SYSTEM", "CRITICAL ERROR: NO CONTEXT SOURCE.", true);
+             await this.showDialogue("SYSTEM", "CRITICAL ERROR: NO CONTENT FROM BRIDGE.", true);
              return;
         }
 
-        // 2. Generate
-        await this.showDialogue("PROFESSOR", "I have wiped the board. Pay attention.", true);
+        await this.showDialogue("PROFESSOR", "Alright class, new topic!", true);
         
         const prompt = `
         Context: "${rawText.substring(0, 800)}".
@@ -324,22 +278,20 @@ export class GameEngine {
         `;
 
         try {
-            let json = null;
-            if (hasArbor && window.Arbor.ai) {
-                const aiRes = await window.Arbor.ai.chat([{role: "user", content: prompt}]);
-                json = this.parseJSON(aiRes);
-            }
+            if (!window.Arbor || !window.Arbor.ai) throw new Error("AI Bridge not found");
+            const aiRes = await window.Arbor.ai.chat([{role: "user", content: prompt}]);
+            const json = this.parseJSON(aiRes);
 
             if (json && Array.isArray(json)) {
                 this.lessonData.concepts = json.map(j => ({ ...j, status: 'pending' }));
                 await this.runRound();
             } else {
-                throw new Error("Invalid AI format or Offline");
+                throw new Error("Invalid AI format");
             }
 
         } catch(e) {
             console.error("AI Error: " + e.message);
-            await this.showDialogue("SYSTEM", "SYSTEM FAILURE. NO BACKUP PROTOCOL.", true);
+            await this.showDialogue("SYSTEM", "SYSTEM FAILURE. AI IS UNRESPONSIVE.", true);
         }
     }
 
@@ -351,35 +303,22 @@ export class GameEngine {
 
         const concept = this.lessonData.concepts[this.currentRound];
         this.currentQ = concept;
-
-        // 1. Pick who will be asked (Lola, Timmy, or YOU)
-        // 0: Lola, 1: Timmy, 2: You
         this.answeringStudentIndex = Math.floor(Math.random() * 3);
         const student = this.students[this.answeringStudentIndex];
 
-        // --- SCENARIO A: YOU ARE ASKED (PLAYER TURN) ---
-        if (this.answeringStudentIndex === 2) {
+        if (this.answeringStudentIndex === 2) { // Player's turn
             this.state = 'PLAYER_TURN';
-            
-            // Prof speaks question directly
-            await this.showDialogue("PROFESSOR", `You there! ${concept.q} Answer me.`);
-
-            // Wait for Player Input (Typed text)
+            await this.showDialogue("PROFESSOR", `You! ${concept.q} Answer me.`);
             this.state = 'INPUT_TEXT';
             const playerText = await this.waitForText(); 
-
-            // Logic: Fuzzy match user text against the correct answer
-            // We ignore case and just check if the user included the main words
             const cleanPlayer = playerText.toLowerCase();
             const cleanCorrect = concept.correct.toLowerCase();
-            
-            // Simple inclusion check
             const isCorrect = cleanPlayer.includes(cleanCorrect) || cleanCorrect.includes(cleanPlayer);
 
             if (isCorrect) {
                 this.shout("CORRECT!");
                 this.spawnParticles(student.x, student.y, '#4ade80');
-                student.score += 20; // Bonus points for answering directly
+                this.addPlayerScore(20);
                 concept.status = 'correct';
                 await this.showDialogue("PROFESSOR", `Exactly. "${concept.correct}". Good job.`);
             } else {
@@ -388,50 +327,35 @@ export class GameEngine {
                 concept.status = 'wrong';
                 await this.showDialogue("PROFESSOR", `Incorrect. I was looking for "${concept.correct}".`);
             }
-        } 
-        
-        // --- SCENARIO B: AI STUDENT IS ASKED ---
-        else {
+        } else { // AI Student's turn
             this.state = 'DIALOGUE';
             await this.showDialogue("PROFESSOR", `${concept.topic}: ${concept.q}`);
-            
-            // Determine if Student is Right or Wrong (50/50 chance)
             const isRight = Math.random() > 0.4;
             const answerText = isRight ? concept.correct : concept.wrong;
-            
-            // Student Speaks
             this.state = 'DIALOGUE_STUDENT';
             await this.showDialogue(student.name.toUpperCase(), answerText);
-
-            // Player Judges (Using Buttons)
             this.state = 'INPUT';
-            const playerJudge = await this.waitForInput(); // Returns true (Correct) or false (Wrong)
-
-            // Evaluate
+            const playerJudge = await this.waitForInput();
             const judgmentCorrect = (isRight && playerJudge) || (!isRight && !playerJudge);
 
             if (judgmentCorrect) {
                 this.shout("ACCEPTED!");
-                this.spawnParticles(this.students[2].x, this.students[2].y, '#4ade80'); // Green particles on player
-                this.students[2].score += 10; 
+                this.spawnParticles(this.students[2].x, this.students[2].y, '#4ade80');
+                this.addPlayerScore(10);
                 concept.status = 'correct';
-                await this.showDialogue("PROFESSOR", "Well spotted, Student. Correct.");
+                await this.showDialogue("PROFESSOR", "Well spotted. Correct.");
             } else {
                 this.shout("OBJECTION!");
                 this.shakeScreen();
-                
                 if (isRight) {
                     student.score += 10;
-                    await this.showDialogue("PROFESSOR", `No! ${student.name} was actually correct.`);
+                    await this.showDialogue("PROFESSOR", `No! ${student.name} was correct.`);
                 } else {
-                    await this.showDialogue("PROFESSOR", `Pay attention! That was obviously wrong.`);
+                    await this.showDialogue("PROFESSOR", `Pay attention! That was wrong.`);
                 }
-                
                 concept.status = 'wrong';
             }
         }
-
-        // Next Round
         this.currentRound++;
         setTimeout(() => this.runRound(), 500);
     }
@@ -440,78 +364,53 @@ export class GameEngine {
         this.state = 'VICTORY';
         const pScore = this.students[2].score;
         this.shout("CLASS DISMISSED");
-        this.showDialogue("PROFESSOR", `Final tally. You scored ${pScore} points.`);
+        this.showDialogue("PROFESSOR", `Final tally. You scored ${pScore} points. We will review another topic next.`);
+        this.advanceCallback = () => this.loadContent(); // Loop to next lesson
     }
-
-    // --- UTILS ---
 
     parseJSON(str) {
         if (!str) return null;
         try {
-            // Robust Regex to find the first JSON array in the string
             const match = str.match(/\[.*\]/s);
-            if (match) {
-                return JSON.parse(match[0]);
-            }
+            if (match) return JSON.parse(match[0]);
             return JSON.parse(str);
-        } catch (e) { 
-            console.error("JSON Parse Error", e);
-            return null; 
-        }
+        } catch (e) { return null; }
     }
 
     waitForInput() {
         this.ui.overlay.style.display = 'flex';
-        return new Promise(resolve => {
-            this.inputResolver = resolve;
-        });
+        return new Promise(resolve => this.inputResolver = resolve);
     }
 
     waitForText() {
         this.ui.textOverlay.style.display = 'flex';
         this.ui.inputField.focus();
-        return new Promise(resolve => {
-            this.textResolver = resolve;
-        });
+        return new Promise(resolve => this.textResolver = resolve);
     }
 
     showDialogue(speaker, text, auto = false) {
         return new Promise(resolve => {
             this.ui.dialogueBox.style.display = 'block';
             this.ui.speakerName.innerText = speaker;
-            
-            // Text color based on speaker
             this.ui.dialogueText.style.color = (speaker === 'PROFESSOR') ? '#000' : '#444'; 
             if (speaker === 'SYSTEM') this.ui.dialogueText.style.color = '#666';
-
             this.ui.dialogueText.innerHTML = ''; 
-            
             let i = 0;
-            // Clear any existing interval if user clicks fast
             if (this.currentTyping) clearInterval(this.currentTyping);
-
             this.currentTyping = setInterval(() => {
                 this.ui.dialogueText.textContent += text.charAt(i);
                 i++;
                 if (i >= text.length) {
                     clearInterval(this.currentTyping);
                     this.currentTyping = null;
-                    if (auto) {
-                        setTimeout(() => resolve(), 1500);
-                    } else {
-                        this.advanceCallback = resolve;
-                    }
+                    if (auto) setTimeout(() => resolve(), 1500);
+                    else this.advanceCallback = resolve;
                 }
             }, 30);
         });
     }
 
     advanceDialogue() {
-        if (this.currentTyping) {
-            // Instant finish if typing
-            // (Not implemented for simplicity, but good practice)
-        }
-        
         if (this.advanceCallback) {
             const cb = this.advanceCallback;
             this.advanceCallback = null;
