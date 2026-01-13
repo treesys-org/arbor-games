@@ -3,240 +3,297 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Primer Trabajo: RPG Edition</title>
+    <title>Primer Trabajo: Workstation</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         body {
-            background-color: #202020;
-            font-family: 'Press Start 2P', cursive;
+            background-color: #0f172a; /* Slate 900 */
+            background-image: radial-gradient(#1e293b 1px, transparent 1px);
+            background-size: 20px 20px;
+            font-family: 'Chakra Petch', sans-serif;
             overflow: hidden;
             touch-action: none;
             display: flex;
             align-items: center;
             justify-content: center;
-            height: 100vh; /* Fallback */
-            height: 100dvh; /* Dynamic Viewport for mobile browsers */
+            height: 100vh;
+            height: 100dvh;
         }
 
-        /* GAMEBOY CHASSIS */
-        .gb-shell {
-            background-color: #c0c0c0; /* Classic Grey */
-            border-radius: 10px 10px 40px 10px;
-            box-shadow: -5px 5px 20px rgba(0,0,0,0.5), inset 2px 2px 5px rgba(255,255,255,0.4);
+        /* CONSOLE CHASSIS (Horizontal / Cyberdeck Style) */
+        .console-shell {
+            background: linear-gradient(145deg, #334155, #1e293b);
+            border: 1px solid #475569;
+            border-radius: 24px;
+            box-shadow: 
+                0 20px 50px rgba(0,0,0,0.8),
+                inset 0 1px 1px rgba(255,255,255,0.1);
             padding: 20px;
-            width: 100%;
-            max-width: 360px; /* Improved for small mobile screens */
+            width: 95%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: row; /* Horizontal layout */
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            position: relative;
+        }
+
+        /* Side Grips */
+        .grip {
+            position: absolute;
+            top: 20px; bottom: 20px;
+            width: 10px;
+            border-radius: 5px;
+            background: rgba(0,0,0,0.2);
+        }
+        .grip-left { left: 10px; }
+        .grip-right { right: 10px; }
+
+        /* CENTER SCREEN AREA */
+        .screen-bezel {
+            background-color: #000;
+            border-radius: 12px;
+            padding: 20px 20px 10px 20px;
+            flex-grow: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
+            box-shadow: inset 0 0 10px rgba(255,255,255,0.1);
+            border: 2px solid #0f172a;
             position: relative;
-            box-sizing: border-box;
-        }
-
-        /* SCREEN BEZEL */
-        .gb-screen-lens {
-            background-color: #555;
-            border-radius: 10px 10px 30px 10px;
-            padding: 15px 20px;
-            width: 100%;
-            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.5);
-            margin-bottom: 20px;
-            position: relative;
-            box-sizing: border-box;
-        }
-
-        .power-light {
-            width: 8px;
-            height: 8px;
-            background-color: #f00;
-            border-radius: 50%;
-            position: absolute;
-            top: 40%;
-            left: 10px;
-            box-shadow: 0 0 5px #f00;
-            opacity: 0.8;
         }
 
         /* LCD SCREEN */
-        canvas {
-            background-color: #9bbc0f; /* Classic Green tint base, though we draw color */
-            width: 100%;
-            image-rendering: pixelated;
-            border: 2px solid #444;
-            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2);
-        }
-
-        /* CONTROLS */
-        .controls-area {
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            padding-bottom: 20px;
-        }
-
-        .d-pad {
-            width: 90px;
-            height: 90px;
+        .canvas-container {
             position: relative;
-            flex-shrink: 0; /* Prevent squishing on tiny screens */
-        }
-
-        .d-btn {
-            background-color: #333;
-            position: absolute;
+            border: 4px solid #333;
             border-radius: 4px;
-            box-shadow: 2px 2px 0px #111;
-            cursor: pointer;
-        }
-        .d-btn:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0px #111; }
-        
-        .d-up { width: 30px; height: 30px; top: 0; left: 30px; }
-        .d-down { width: 30px; height: 30px; bottom: 0; left: 30px; }
-        .d-left { width: 30px; height: 30px; top: 30px; left: 0; }
-        .d-right { width: 30px; height: 30px; top: 30px; right: 0; }
-        .d-center { width: 30px; height: 30px; top: 30px; left: 30px; background: #333; pointer-events: none; }
-
-        .action-btns {
-            display: flex;
-            gap: 15px;
-            transform: rotate(-15deg);
-            margin-bottom: 10px;
-            flex-shrink: 0;
+            overflow: hidden;
+            background: #1a1a1a;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.1); /* Blue glow */
         }
 
-        .a-btn-group, .b-btn-group {
+        canvas {
+            display: block;
+            image-rendering: pixelated;
+            width: 100%;
+            height: auto;
+            max-height: 60vh;
+            background-color: #0f172a; 
+        }
+
+        /* CONTROLS AREAS */
+        .controls-left, .controls-right {
+            width: 120px;
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        /* D-PAD */
+        .d-pad {
+            width: 100px;
+            height: 100px;
+            position: relative;
+        }
+
+        .d-btn {
+            background: linear-gradient(to bottom, #475569, #334155);
+            position: absolute;
+            border-radius: 4px;
+            box-shadow: 
+                0 4px 0 #1e293b,
+                inset 0 1px 0 rgba(255,255,255,0.2);
+            cursor: pointer;
+            transition: transform 0.05s;
+        }
+        .d-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #1e293b; }
+        
+        .d-up { width: 34px; height: 34px; top: 0; left: 33px; border-radius: 4px 4px 0 0; }
+        .d-down { width: 34px; height: 34px; bottom: 0; left: 33px; border-radius: 0 0 4px 4px; }
+        .d-left { width: 34px; height: 34px; top: 33px; left: 0; border-radius: 4px 0 0 4px; }
+        .d-right { width: 34px; height: 34px; top: 33px; right: 0; border-radius: 0 4px 4px 0; }
+        .d-center { width: 34px; height: 34px; top: 33px; left: 33px; background: #334155; pointer-events: none; z-index: 10; }
+
+        /* ACTION BUTTONS */
+        .action-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            transform: rotate(-10deg);
+            margin-top: 10px;
         }
 
         .round-btn {
-            width: 35px;
-            height: 35px;
+            width: 45px;
+            height: 45px;
             border-radius: 50%;
-            background-color: #8b1d3a; /* Magenta/Red */
-            box-shadow: 2px 2px 0px #4a0f1e;
             cursor: pointer;
-        }
-        .round-btn:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0px #4a0f1e; }
-        
-        .btn-label {
-            font-size: 10px;
-            color: #333;
-            font-weight: bold;
-            margin-top: 4px;
-            font-family: sans-serif;
-        }
-
-        /* START SELECT */
-        .option-btns {
             display: flex;
-            gap: 15px;
-            margin-top: 10px;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            color: rgba(0,0,0,0.5);
+            font-size: 14px;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.3), inset 0 2px 5px rgba(255,255,255,0.2);
+            transition: transform 0.05s;
+        }
+        .round-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.3); }
+
+        #btn-a { background: #f97316; /* Orange */ margin-top: -20px; }
+        #btn-b { background: #0ea5e9; /* Sky Blue */ margin-top: 20px; }
+
+        /* MENU BUTTONS */
+        .menu-btns {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
         }
         .pill-btn {
-            width: 50px;
-            height: 12px;
-            background-color: #333;
-            border-radius: 10px;
-            transform: rotate(-15deg);
-            border: 1px solid #555;
+            width: 40px;
+            height: 8px;
+            background-color: #64748b;
+            border-radius: 4px;
             cursor: pointer;
+            box-shadow: 0 2px 0 #334155;
         }
-        .pill-btn:active { background-color: #111; }
+        .pill-btn:active { transform: translateY(1px); box-shadow: none; }
 
-        /* SCANLINES OVERLAY */
+        /* DECORATIONS */
+        .speaker-grill {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+        }
+        .grill-line {
+            width: 40px;
+            height: 4px;
+            background: #0f172a;
+            border-radius: 2px;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .branding {
+            margin-top: 10px;
+            font-size: 10px;
+            letter-spacing: 2px;
+            color: #64748b;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        /* OVERLAYS */
         .scanlines {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
+            position: absolute; inset: 0;
+            background: linear-gradient(rgba(0,0,0,0) 50%, rgba(0, 0, 0, 0.2) 50%);
             background-size: 100% 4px;
             pointer-events: none;
             z-index: 10;
         }
         
-        /* ROTATION WARNING OVERLAY */
-        #rotate-warning {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: #202020;
-            z-index: 9999;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-            text-align: center;
-            padding: 20px;
+        .screen-glare {
+            position: absolute; inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 40%);
+            pointer-events: none;
+            z-index: 20;
         }
 
-        /* Detect Landscape on Short Screens (Mobile) */
-        @media screen and (max-height: 500px) and (orientation: landscape) {
-            .gb-shell { display: none; }
-            #rotate-warning { display: flex; }
+        /* MOBILE RESPONSIVE TWEAKS */
+        @media (max-width: 768px) {
+            .console-shell {
+                flex-direction: column;
+                width: 90%;
+                padding: 15px;
+                border-radius: 15px;
+                gap: 10px;
+            }
+            .controls-left, .controls-right {
+                flex-direction: row;
+                width: 100%;
+                justify-content: space-around;
+            }
+            .action-group { margin-top: 0; transform: none; }
+            #btn-a { margin-top: 0; }
+            #btn-b { margin-top: 0; }
+            .speaker-grill, .branding { display: none; }
+            
+            /* Order: Screen first, then controls */
+            .screen-bezel { order: 1; margin-bottom: 10px; width: 100%; }
+            .controls-left { order: 2; margin-bottom: 10px; }
+            .controls-right { order: 3; }
         }
 
     </style>
 </head>
 <body>
 
-    <!-- ROTATION WARNING -->
-    <div id="rotate-warning">
-        <div class="text-4xl mb-4">📱 ⟳</div>
-        <h1 class="text-yellow-400 mb-2">PLEASE ROTATE</h1>
-        <p class="text-xs text-gray-400 leading-relaxed">This device requires<br>Portrait Mode<br>to operate.</p>
-    </div>
+    <div class="console-shell">
+        <div class="grip grip-left"></div>
+        <div class="grip grip-right"></div>
 
-    <div class="gb-shell">
-        <div class="gb-screen-lens">
-            <div class="power-light"></div>
-            <div class="text-[8px] text-gray-400 absolute top-2 left-6 italic font-sans">BATTERY</div>
-            <div class="relative">
-                <canvas id="game-canvas" width="160" height="144"></canvas>
-                <div class="scanlines"></div>
+        <!-- LEFT CONTROLS -->
+        <div class="controls-left">
+            <div class="speaker-grill">
+                <div class="grill-line" style="width:30px"></div>
+                <div class="grill-line"></div>
+                <div class="grill-line" style="width:30px"></div>
             </div>
-            <div class="text-center mt-1">
-                <span class="text-xs font-bold text-gray-300 italic font-sans tracking-widest">ARBOR<span class="text-purple-400">BOY</span> COLOR</span>
-            </div>
-        </div>
-
-        <div class="controls-area">
             <div class="d-pad">
                 <div id="btn-up" class="d-btn d-up"></div>
                 <div id="btn-left" class="d-btn d-left"></div>
-                <div class="d-btn d-center"></div> <!-- Center filler -->
+                <div class="d-btn d-center"></div>
                 <div id="btn-right" class="d-btn d-right"></div>
                 <div id="btn-down" class="d-btn d-down"></div>
             </div>
+        </div>
 
-            <div class="action-btns">
-                <div class="b-btn-group">
-                    <div id="btn-b" class="round-btn"></div>
-                    <span class="btn-label">B</span>
+        <!-- CENTER SCREEN -->
+        <div class="screen-bezel">
+            <div class="canvas-container">
+                <div class="screen-glare"></div>
+                <canvas id="game-canvas" width="160" height="144"></canvas>
+                <div class="scanlines"></div>
+            </div>
+            <div class="branding">ARBOR OS <span class="text-sky-500">WORKSTATION</span></div>
+            <div class="menu-btns">
+                <div>
+                    <div id="btn-select" class="pill-btn"></div>
+                    <div class="text-[8px] text-center mt-1 text-slate-500 font-bold">SELECT</div>
                 </div>
-                <div class="a-btn-group">
-                    <div id="btn-a" class="round-btn"></div>
-                    <span class="btn-label">A</span>
+                <div>
+                    <div id="btn-start" class="pill-btn"></div>
+                    <div class="text-[8px] text-center mt-1 text-slate-500 font-bold">START</div>
                 </div>
             </div>
         </div>
 
-        <div class="option-btns">
-            <div id="btn-select" class="pill-btn"></div>
-            <div id="btn-start" class="pill-btn"></div>
-        </div>
-        <div class="flex gap-8 mt-1 text-[8px] font-bold text-gray-600 font-sans uppercase tracking-widest">
-            <span>Select</span>
-            <span>Start</span>
+        <!-- RIGHT CONTROLS -->
+        <div class="controls-right">
+            <div class="speaker-grill">
+                <div class="grill-line" style="width:30px"></div>
+                <div class="grill-line"></div>
+                <div class="grill-line" style="width:30px"></div>
+            </div>
+            <div class="action-group">
+                <div class="flex flex-col items-center">
+                    <div id="btn-b" class="round-btn">B</div>
+                </div>
+                <div class="flex flex-col items-center">
+                    <div id="btn-a" class="round-btn">A</div>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- AUDIO HINT -->
-    <div class="fixed top-4 left-4 text-white text-[10px] opacity-50 hidden md:block">
-        ARROWS / WASD to Move<br>
-        Z / ENTER = A (Select)<br>
+    <div class="fixed bottom-4 left-4 text-slate-600 text-xs hidden md:block font-mono">
+        KEYBOARD CONTROLS:<br>
+        ARROWS / WASD = MOVE<br>
+        Z / ENTER = A (Interact)<br>
         X / ESC = B (Back)
     </div>
 

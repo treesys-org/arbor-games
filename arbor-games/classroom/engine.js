@@ -431,13 +431,16 @@ class GameEngine {
 
     async runRound() {
         if (this.currentRound >= this.lessonData.concepts.length) {
-            this.victory();
+            await this.victory(); // Await victory so we don't restart too early
             return;
         }
 
         const concept = this.lessonData.concepts[this.currentRound];
         this.currentQ = concept;
-        this.answeringStudentIndex = Math.floor(Math.random() * 3);
+        
+        // FIX: Round Robin Logic (0=Lola, 1=Timmy, 2=You)
+        // Ensures the player definitely gets a turn every 3 rounds.
+        this.answeringStudentIndex = this.currentRound % 3;
         const student = this.students[this.answeringStudentIndex];
 
         if (this.answeringStudentIndex === 2) { // Player's turn
@@ -491,18 +494,20 @@ class GameEngine {
             }
         }
         this.currentRound++;
-        // Replaced automatic setTimeout with explicit call to next round when needed, 
-        // but since await showDialogue blocks until the user clicks Next, 
-        // the loop will naturally wait at the end of the previous await logic.
-        this.runRound(); 
+        // Use await to maintain stack/logic integrity
+        await this.runRound(); 
     }
 
-    victory() {
+    async victory() {
         this.state = 'VICTORY';
         const pScore = this.students[2].score;
         this.shout(this.getLine('DISMISSED'));
-        this.showDialogue("PROFESSOR", this.getLine('FINAL_TALLY', { score: pScore }));
-        this.advanceCallback = () => this.loadContent(); // Loop to next lesson
+        
+        // Fix: Properly await the dialog so the button works
+        await this.showDialogue("PROFESSOR", this.getLine('FINAL_TALLY', { score: pScore }));
+        
+        // Only loop AFTER user has clicked Next on the final message
+        this.loadContent(); 
     }
 
     waitForInput() {
@@ -525,10 +530,11 @@ class GameEngine {
             this.ui.dialogueText.innerHTML = ''; 
             
             // UI State for Button
+            this.ui.btnNext.style.display = 'block'; // Ensure visible initially
+            
             if (auto) {
                 this.ui.btnNext.style.display = 'none';
             } else {
-                this.ui.btnNext.style.display = 'block';
                 this.ui.btnNext.disabled = true; // Disable until typing finishes
             }
 
@@ -549,7 +555,12 @@ class GameEngine {
                     } else {
                         // Enable the manual advance button
                         this.ui.btnNext.disabled = false;
-                        this.advanceCallback = resolve;
+                        
+                        // Fix: Proper callback that hides button after use
+                        this.advanceCallback = () => {
+                             this.ui.btnNext.style.display = 'none'; // Visual Feedback
+                             resolve();
+                        };
                     }
                 }
             }, 30);

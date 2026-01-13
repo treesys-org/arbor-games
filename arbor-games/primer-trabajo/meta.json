@@ -1,7 +1,7 @@
 {
-  "name": "Primer Trabajo RPG",
-  "description": "Una aventura RPG estilo retro. Elige tu clase profesional generada por IA y lucha contra tareas salvajes en tu primer día de oficina.",
-  "icon": "👾",
-  "version": "2.0.0",
+  "name": "Primer Trabajo: Corp Sim",
+  "description": "Simulador de trabajo RPG. Gestiona un edificio generado proceduralmente. Atiende llamadas y clientes basándote en el tema de estudio. La IA define tu empresa.",
+  "icon": "💼",
+  "version": "3.0.0",
   "author": "Arbor Official"
 }
