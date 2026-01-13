@@ -156,10 +156,38 @@
             pointer-events: none;
             z-index: 10;
         }
+        
+        /* ROTATION WARNING OVERLAY */
+        #rotate-warning {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #202020;
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            text-align: center;
+            padding: 20px;
+        }
+
+        /* Detect Landscape on Short Screens (Mobile) */
+        @media screen and (max-height: 500px) and (orientation: landscape) {
+            .gb-shell { display: none; }
+            #rotate-warning { display: flex; }
+        }
 
     </style>
 </head>
 <body>
+
+    <!-- ROTATION WARNING -->
+    <div id="rotate-warning">
+        <div class="text-4xl mb-4">📱 ⟳</div>
+        <h1 class="text-yellow-400 mb-2">PLEASE ROTATE</h1>
+        <p class="text-xs text-gray-400 leading-relaxed">This device requires<br>Portrait Mode<br>to operate.</p>
+    </div>
 
     <div class="gb-shell">
         <div class="gb-screen-lens">
@@ -206,7 +234,7 @@
     </div>
 
     <!-- AUDIO HINT -->
-    <div class="fixed top-4 left-4 text-white text-[10px] opacity-50">
+    <div class="fixed top-4 left-4 text-white text-[10px] opacity-50 hidden md:block">
         ARROWS / WASD to Move<br>
         Z / ENTER = A (Select)<br>
         X / ESC = B (Back)

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Memory Garden: Overgrowth</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;700;900&display=swap" rel="stylesheet">
@@ -70,9 +70,31 @@
         
         .overlay { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.9); transition: opacity 0.5s; backdrop-filter: blur(5px); }
         .hidden-fade { opacity: 0; pointer-events: none; }
+
+        /* ROTATION WARNING */
+        #rotate-warning {
+            display: none;
+            position: fixed; inset: 0; z-index: 9999;
+            background: #0f172a; color: #34d399;
+            flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; backdrop-filter: blur(10px);
+        }
+        
+        /* Enforce Portrait on Mobile for vertical garden growth */
+        @media screen and (orientation: landscape) and (max-height: 500px) {
+            #game-ui, #start-screen, #victory-screen { display: none !important; }
+            #rotate-warning { display: flex; }
+        }
     </style>
 </head>
 <body class="text-white">
+
+    <!-- ROTATION WARNING -->
+    <div id="rotate-warning">
+        <div class="text-6xl mb-4">📱 ⟳</div>
+        <h1 class="text-2xl font-black mb-2 uppercase">Portrait Mode<br>Recommended</h1>
+        <p class="text-sm opacity-70 font-mono">Let the garden grow tall.</p>
+    </div>
 
     <!-- PROCEDURAL BACKGROUND -->
     <canvas id="bg-canvas"></canvas>
