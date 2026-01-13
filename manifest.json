@@ -1,0 +1,29 @@
+[
+    {
+        "id": "classroom",
+        "name": "Classroom Simulator",
+        "description": "Simulador de aula RPG. Interact\u00faa con el profesor y alumnos usando IA local.",
+        "icon": "\ud83d\udc68\u200d\ud83c\udfeb",
+        "path": "./arbor-games/classroom/index.html",
+        "version": "1.0.0",
+        "author": "Arbor Official"
+    },
+    {
+        "id": "firstjob",
+        "name": "First Job: Corp Sim",
+        "description": "Simulador de trabajo RPG. Atiende llamadas y clientes escribiendo la soluci\u00f3n t\u00e9cnica correcta basada en el contexto.",
+        "icon": "\ud83d\udcbc",
+        "path": "./arbor-games/firstjob/index.html",
+        "version": "3.1.0",
+        "author": "Arbor Official"
+    },
+    {
+        "id": "memory",
+        "name": "Memory Garden: Overgrowth",
+        "description": "Una experiencia arcade visual. Empareja conceptos para cultivar un jard\u00edn procedural en tiempo real. Sistema de combos y audio sint\u00e9tico.",
+        "icon": "\ud83c\udf3a",
+        "path": "./arbor-games/memory/index.html",
+        "version": "2.0.0",
+        "author": "Arbor Official"
+    }
+]
