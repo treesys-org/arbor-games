@@ -572,21 +572,26 @@ class Game {
     }
 
     prepareInterviewUI() {
+        // Use special visual mode: Transparent background to see face
         this.els.taskOverlay.style.display = 'flex';
+        this.els.taskOverlay.classList.add('interview-mode');
         
-        // --- MEMORY SYSTEM: RECRUITER REACTION ---
         let headerText = `CALL: RECRUITER [${this.interviewRound+1}/${this.interviewQuestions.length}]`;
         if (this.interviewRound === 0 && this.memories.rejections > 0) {
-             // The NPC remembers you failed before!
              headerText += ` (ATTEMPT #${this.memories.rejections + 1})`;
         }
         
+        const q = this.interviewQuestions[this.interviewRound];
+
         this.els.taskHeader.innerText = headerText;
-        this.els.taskPrompt.innerText = ""; 
-        this.els.taskInput.placeholder = "ANSWER HERE...";
+        this.els.taskPrompt.style.display = 'block'; // Show question in DOM
+        this.els.taskPrompt.innerText = `"${q.q}"`;
+        
+        // IMMEDIATE DISPLAY - NO DELAY
+        this.els.taskInput.style.display = 'block';
+        this.els.taskSubmit.style.display = 'block';
         this.els.taskInput.value = '';
         this.els.taskInput.focus();
-        this.els.taskPrompt.style.display = 'none'; 
     }
 
     togglePause() { this.paused = !this.paused; }
@@ -599,11 +604,24 @@ class Game {
 
     resolveInterview(val) {
         const q = this.interviewQuestions[this.interviewRound];
+        
+        // Logic: Hit a keyword OR just provide any answer length > 1 (Short answers allowed)
         const hit = q.keywords.some(k => val.includes(k.toLowerCase()));
-        this.lastInterviewFeedback = hit || val.length > 4 ? `Recruiter: "Impressive."` : `Recruiter: "Hmm..."`;
-        if(hit || val.length > 4) { this.interviewScore++; this.audio.sfxSuccess(); } else this.audio.sfxError();
+        const effort = val.length > 1; // Basic validation
+
+        const success = hit || effort;
+
+        this.lastInterviewFeedback = success ? `Recruiter: "Interesting."` : `Recruiter: "..."`;
+        
+        if(success) { 
+            this.interviewScore++; 
+            this.audio.sfxSuccess(); 
+        } else { 
+            this.audio.sfxError(); 
+        }
 
         this.state = 'INTERVIEW_FEEDBACK';
+        // Hide UI during feedback
         this.els.taskOverlay.style.display = 'none'; 
 
         setTimeout(() => {
@@ -619,6 +637,9 @@ class Game {
 
     showRecruiterVerdict() {
         this.state = 'INTERVIEW_RESULT';
+        // Remove transparent mode for final text screen
+        this.els.taskOverlay.classList.remove('interview-mode');
+
         const passed = this.interviewScore >= Math.floor(this.interviewQuestions.length * 0.6);
         this.els.taskOverlay.style.display = 'flex';
         this.els.taskHeader.innerText = "CALL ENDED";
@@ -651,6 +672,7 @@ class Game {
         this.els.taskOverlay.style.display = 'none';
         this.els.taskInput.style.display = 'block';
         this.els.taskPrompt.style.display = 'block';
+        this.els.taskSubmit.style.display = 'block'; // Ensure visible
         this.els.taskSubmit.textContent = "EXECUTE";
         this.els.taskSubmit.onclick = () => this.resolveInputSubmission(); 
     }
@@ -912,6 +934,9 @@ class Game {
         this.currentNPC = npc;
         this.audio.sfxSelect();
         
+        // RESET OVERLAY STYLE (Remove transparent interview mode)
+        this.els.taskOverlay.classList.remove('interview-mode');
+        
         // Clear phone state
         this.phone.targetNPC = null;
         this.phone.active = false;
@@ -937,7 +962,11 @@ class Game {
         this.els.taskHeader.innerText = `HELP: ${npc.role.toUpperCase()}`;
         this.els.taskPrompt.style.display = 'block';
         this.els.taskPrompt.innerText = `"${q.text}"`;
+        
+        // Ensure inputs visible
         this.els.taskInput.style.display = 'block';
+        this.els.taskSubmit.style.display = 'block';
+        
         this.els.taskInput.value = '';
         this.els.taskInput.placeholder = "SOLUTION...";
         this.els.taskInput.focus();
@@ -1265,9 +1294,12 @@ class Game {
         this.ctx.fillStyle = '#fff';
         this.ctx.font = '8px monospace';
         this.ctx.fillText("REC", 58, 33);
-        this.ctx.fillText(this.data.company.toUpperCase() + " HR", 50, 150);
+        
+        // MOVED TEXT UP SLIGHTLY to avoid overlap with bottom input box
+        this.ctx.fillText(this.data.company.toUpperCase() + " HR", 50, 130); 
         
         const cx = CONFIG.W/2;
+        // Small microphone icons
         this.ctx.fillStyle = '#334155';
         this.ctx.beginPath(); this.ctx.arc(cx-20, 200, 12, 0, Math.PI*2); this.ctx.fill(); 
         this.ctx.fillStyle = '#ef4444';
@@ -1281,11 +1313,12 @@ class Game {
         
         if (this.state === 'INTERVIEW_FEEDBACK') {
              this.ctx.fillStyle = '#facc15';
-             this.ctx.fillText(this.lastInterviewFeedback, cx, 180);
-        } else {
-             const q = this.interviewQuestions[this.interviewRound];
-             this.ctx.fillText(`"${q.q}"`, cx, 180);
+             this.ctx.fillText(this.lastInterviewFeedback, cx, 150);
         }
+        
+        // Question is now handled via DOM element (task-prompt-text) in prepareInterviewUI
+        // to avoid visibility issues and conflicts.
+
         this.ctx.textAlign = 'left';
     }
 

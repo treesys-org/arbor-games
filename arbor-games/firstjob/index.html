@@ -107,6 +107,36 @@
             backdrop-filter: blur(2px);
         }
 
+        /* INTERVIEW MODE MODIFIER */
+        #task-input-layer.interview-mode {
+            background: rgba(0,0,0,0) !important;
+            justify-content: flex-end; /* Push input to bottom */
+            padding-bottom: 20px;
+        }
+        
+        #task-input-layer.interview-mode .terminal-window {
+            margin-bottom: 20px;
+            background: rgba(15, 23, 42, 0.8); /* Semi-transparent */
+            border: none;
+            box-shadow: none;
+        }
+        
+        #task-input-layer.interview-mode .term-header {
+            background: transparent;
+            color: #22d3ee;
+            border-bottom: 1px solid #22d3ee;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+        
+        #task-input-layer.interview-mode #task-prompt-text {
+            color: #fff;
+            text-shadow: 0 2px 4px #000;
+            font-size: 1.2rem; /* Slightly smaller to fit */
+            background: rgba(0,0,0,0.6);
+            padding: 10px;
+            border-radius: 4px;
+        }
+
         .terminal-window {
             width: 100%;
             max-width: 500px;
@@ -275,6 +305,7 @@
             font-size: 0.7rem; letter-spacing: 0.2rem; color: #475569; font-weight: bold;
             text-shadow: 0 1px 0 rgba(255,255,255,0.1);
             text-transform: uppercase;
+            z-index: 50; /* Z-INDEX FIX */
         }
     </style>
 </head>
