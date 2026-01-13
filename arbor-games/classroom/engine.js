@@ -31,7 +31,8 @@ const translations = {
         SUBMIT: "SUBMIT",
         JUDGE_CORRECT: "✅ CORRECT",
         JUDGE_WRONG: "❌ WRONG",
-        UNKNOWN_SPEAKER: "???"
+        UNKNOWN_SPEAKER: "???",
+        NEXT_BTN: "NEXT ▶"
     },
     ES: {
         START_CLASS: "EMPEZAR CLASE",
@@ -57,7 +58,8 @@ const translations = {
         SUBMIT: "ENVIAR",
         JUDGE_CORRECT: "✅ CORRECTO",
         JUDGE_WRONG: "❌ INCORRECTO",
-        UNKNOWN_SPEAKER: "???"
+        UNKNOWN_SPEAKER: "???",
+        NEXT_BTN: "SIGUIENTE ▶"
     }
 };
 
@@ -120,6 +122,7 @@ class GameEngine {
             dialogueBox: document.getElementById('dialogue-box'),
             speakerName: document.getElementById('speaker-name'),
             dialogueText: document.getElementById('dialogue-text'),
+            btnNext: document.getElementById('btn-next'), // NEW BUTTON
             shoutBubble: document.getElementById('shout-bubble'),
             overlay: document.getElementById('input-overlay'),
             btnTrue: document.getElementById('btn-judge-true'),
@@ -133,6 +136,7 @@ class GameEngine {
         this.ui.btnSubmit.textContent = this.getLine('SUBMIT');
         this.ui.btnTrue.textContent = this.getLine('JUDGE_CORRECT');
         this.ui.btnFalse.textContent = this.getLine('JUDGE_WRONG');
+        this.ui.btnNext.textContent = this.getLine('NEXT_BTN');
         this.ui.speakerName.textContent = this.getLine('UNKNOWN_SPEAKER');
 
         this.inputResolver = null;
@@ -151,21 +155,30 @@ class GameEngine {
     setupInput() {
         const dialogueStates = ['DIALOGUE', 'DIALOGUE_STUDENT', 'VICTORY'];
         
+        // Advance on Space or Enter (optional, button is preferred now)
         document.addEventListener('keydown', (e) => {
             if ((e.key === ' ' || e.key === 'Enter') && dialogueStates.includes(this.state)) {
-                this.advanceDialogue();
+                // Only if button is not disabled (typing finished)
+                if (!this.ui.btnNext.disabled) {
+                    this.advanceDialogue();
+                }
             }
             if (e.key === 'Enter' && this.state === 'INPUT_TEXT') {
                 this.submitText();
             }
         });
 
-        this.ui.dialogueBox.addEventListener('click', () => {
-             if (dialogueStates.includes(this.state)) {
+        // Click on Dialogue Box is optional fallback, primarily we use the button
+        this.ui.dialogueBox.addEventListener('click', (e) => {
+             // Avoid double trigger if clicking the button itself
+             if (e.target.id === 'btn-next') return;
+
+             if (dialogueStates.includes(this.state) && !this.ui.btnNext.disabled) {
                  this.advanceDialogue();
              }
         });
 
+        this.ui.btnNext.addEventListener('click', () => this.advanceDialogue());
         this.ui.btnTrue.addEventListener('click', () => this.resolveInput(true));
         this.ui.btnFalse.addEventListener('click', () => this.resolveInput(false));
         this.ui.btnSubmit.addEventListener('click', () => this.submitText());
@@ -336,6 +349,7 @@ class GameEngine {
         this.lessonData = { text: "...", concepts: [] };
         this.currentRound = 0;
         this.ui.dialogueBox.style.display = 'none';
+        this.ui.btnNext.style.display = 'none'; // Hide button
         this.ui.overlay.style.display = 'none';
         this.ui.textOverlay.style.display = 'none';
     }
@@ -477,7 +491,10 @@ class GameEngine {
             }
         }
         this.currentRound++;
-        setTimeout(() => this.runRound(), 500);
+        // Replaced automatic setTimeout with explicit call to next round when needed, 
+        // but since await showDialogue blocks until the user clicks Next, 
+        // the loop will naturally wait at the end of the previous await logic.
+        this.runRound(); 
     }
 
     victory() {
@@ -506,23 +523,43 @@ class GameEngine {
             this.ui.dialogueText.style.color = (speaker === 'PROFESSOR') ? '#000' : '#444'; 
             if (speaker === 'SYSTEM') this.ui.dialogueText.style.color = '#666';
             this.ui.dialogueText.innerHTML = ''; 
+            
+            // UI State for Button
+            if (auto) {
+                this.ui.btnNext.style.display = 'none';
+            } else {
+                this.ui.btnNext.style.display = 'block';
+                this.ui.btnNext.disabled = true; // Disable until typing finishes
+            }
+
             let i = 0;
             if (this.currentTyping) clearInterval(this.currentTyping);
+            
             this.currentTyping = setInterval(() => {
                 this.ui.dialogueText.textContent += text.charAt(i);
                 i++;
+                
+                // Finished Typing
                 if (i >= text.length) {
                     clearInterval(this.currentTyping);
                     this.currentTyping = null;
-                    if (auto) setTimeout(() => resolve(), 1500);
-                    else this.advanceCallback = resolve;
+                    
+                    if (auto) {
+                         setTimeout(() => resolve(), 1500);
+                    } else {
+                        // Enable the manual advance button
+                        this.ui.btnNext.disabled = false;
+                        this.advanceCallback = resolve;
+                    }
                 }
             }, 30);
         });
     }
 
     advanceDialogue() {
-        if (this.advanceCallback) {
+        // If typing is in progress, skip to end could be implemented here, 
+        // but for now we stick to the requirement: button enables when typing finishes.
+        if (this.advanceCallback && !this.ui.btnNext.disabled) {
             const cb = this.advanceCallback;
             this.advanceCallback = null;
             cb();

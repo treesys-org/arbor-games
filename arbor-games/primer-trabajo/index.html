@@ -2,199 +2,215 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Arbor: CareerOS Extreme</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Primer Trabajo: RPG Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&family=Inter:wght@400;600;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
-        :root { --bg-dark: #0f172a; --panel: rgba(30, 41, 59, 0.7); --accent: #3b82f6; --success: #10b981; --danger: #ef4444; }
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: #020617; 
-            color: #e2e8f0; 
-            overflow: hidden; 
-            height: 100vh; 
-            background-image: radial-gradient(#1e293b 1px, transparent 1px); 
-            background-size: 20px 20px;
-            touch-action: manipulation; /* Mobile: prevents double-tap to zoom */
+        body {
+            background-color: #202020;
+            font-family: 'Press Start 2P', cursive;
+            overflow: hidden;
+            touch-action: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh; /* Fallback */
+            height: 100dvh; /* Dynamic Viewport for mobile browsers */
         }
+
+        /* GAMEBOY CHASSIS */
+        .gb-shell {
+            background-color: #c0c0c0; /* Classic Grey */
+            border-radius: 10px 10px 40px 10px;
+            box-shadow: -5px 5px 20px rgba(0,0,0,0.5), inset 2px 2px 5px rgba(255,255,255,0.4);
+            padding: 20px;
+            width: 100%;
+            max-width: 360px; /* Improved for small mobile screens */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        /* SCREEN BEZEL */
+        .gb-screen-lens {
+            background-color: #555;
+            border-radius: 10px 10px 30px 10px;
+            padding: 15px 20px;
+            width: 100%;
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .power-light {
+            width: 8px;
+            height: 8px;
+            background-color: #f00;
+            border-radius: 50%;
+            position: absolute;
+            top: 40%;
+            left: 10px;
+            box-shadow: 0 0 5px #f00;
+            opacity: 0.8;
+        }
+
+        /* LCD SCREEN */
+        canvas {
+            background-color: #9bbc0f; /* Classic Green tint base, though we draw color */
+            width: 100%;
+            image-rendering: pixelated;
+            border: 2px solid #444;
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2);
+        }
+
+        /* CONTROLS */
+        .controls-area {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding-bottom: 20px;
+        }
+
+        .d-pad {
+            width: 90px;
+            height: 90px;
+            position: relative;
+            flex-shrink: 0; /* Prevent squishing on tiny screens */
+        }
+
+        .d-btn {
+            background-color: #333;
+            position: absolute;
+            border-radius: 4px;
+            box-shadow: 2px 2px 0px #111;
+            cursor: pointer;
+        }
+        .d-btn:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0px #111; }
         
-        /* FX & Animations */
-        .glass-panel { background: var(--panel); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
-        .mono { font-family: 'JetBrains Mono', monospace; }
+        .d-up { width: 30px; height: 30px; top: 0; left: 30px; }
+        .d-down { width: 30px; height: 30px; bottom: 0; left: 30px; }
+        .d-left { width: 30px; height: 30px; top: 30px; left: 0; }
+        .d-right { width: 30px; height: 30px; top: 30px; right: 0; }
+        .d-center { width: 30px; height: 30px; top: 30px; left: 30px; background: #333; pointer-events: none; }
+
+        .action-btns {
+            display: flex;
+            gap: 15px;
+            transform: rotate(-15deg);
+            margin-bottom: 10px;
+            flex-shrink: 0;
+        }
+
+        .a-btn-group, .b-btn-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .round-btn {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background-color: #8b1d3a; /* Magenta/Red */
+            box-shadow: 2px 2px 0px #4a0f1e;
+            cursor: pointer;
+        }
+        .round-btn:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0px #4a0f1e; }
         
-        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        
-        .slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .btn-label {
+            font-size: 10px;
+            color: #333;
+            font-weight: bold;
+            margin-top: 4px;
+            font-family: sans-serif;
+        }
 
-        .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
-        @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
+        /* START SELECT */
+        .option-btns {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .pill-btn {
+            width: 50px;
+            height: 12px;
+            background-color: #333;
+            border-radius: 10px;
+            transform: rotate(-15deg);
+            border: 1px solid #555;
+            cursor: pointer;
+        }
+        .pill-btn:active { background-color: #111; }
 
-        /* Floating Money Text */
-        .float-text { position: absolute; pointer-events: none; animation: floatUp 1.5s ease-out forwards; font-weight: 900; z-index: 50; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-50px) scale(1.5); } }
+        /* SCANLINES OVERLAY */
+        .scanlines {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 10;
+        }
 
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-
-        /* Layout Utilities */
-        .hidden { display: none !important; }
-        .crt-line { width: 100%; height: 2px; background: rgba(255,255,255,0.05); position: absolute; animation: scan 3s linear infinite; pointer-events: none; z-index: 40; }
-        @keyframes scan { 0% { top: 0%; } 100% { top: 100%; } }
-
-        /* Chat Bubbles */
-        .bubble { max-width: 85%; padding: 12px 16px; margin-bottom: 8px; border-radius: 12px; font-size: 0.95rem; line-height: 1.4; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        .bubble-ai { background: #1e293b; border-bottom-left-radius: 2px; border: 1px solid #334155; color: #e2e8f0; }
-        .bubble-user { background: #2563eb; color: white; border-bottom-right-radius: 2px; align-self: flex-end; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
-        @keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
-
-        /* Task Card */
-        .task-card { transition: transform 0.3s ease; }
-        .task-card:hover { transform: translateY(-2px); }
     </style>
 </head>
-<body class="flex items-center justify-center p-4">
+<body>
 
-    <div class="crt-line"></div>
-
-    <!-- MAIN UI CONTAINER -->
-    <div class="relative w-full max-w-lg h-[90vh] glass-panel rounded-2xl overflow-hidden flex flex-col">
-        
-        <!-- TOP HUD: Stats -->
-        <header class="bg-slate-900/80 border-b border-slate-700 p-4 flex justify-between items-center z-10">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-xl shadow-[0_0_15px_rgba(37,99,235,0.5)]">💼</div>
-                <div>
-                    <h1 class="text-xs text-blue-400 font-bold tracking-widest uppercase">CAREER_OS <span class="text-white">v2.0</span></h1>
-                    <div id="job-title-hud" class="text-xs text-slate-400 truncate max-w-[120px]">Desempleado</div>
-                </div>
+    <div class="gb-shell">
+        <div class="gb-screen-lens">
+            <div class="power-light"></div>
+            <div class="text-[8px] text-gray-400 absolute top-2 left-6 italic font-sans">BATTERY</div>
+            <div class="relative">
+                <canvas id="game-canvas" width="160" height="144"></canvas>
+                <div class="scanlines"></div>
             </div>
-            <div class="flex items-center gap-4 text-xs mono">
-                <div class="text-center">
-                    <div class="text-slate-500 uppercase text-[0.6rem]">REP</div>
-                    <div id="hud-rep" class="text-purple-400 font-bold text-lg">50%</div>
-                </div>
-                <div class="text-center">
-                    <div class="text-slate-500 uppercase text-[0.6rem]">NRG</div>
-                    <div id="hud-energy" class="text-yellow-400 font-bold text-lg">100%</div>
-                </div>
-                <div class="text-center bg-slate-800 px-3 py-1 rounded border border-slate-700">
-                    <div class="text-slate-500 uppercase text-[0.6rem]">CREDITS</div>
-                    <div id="hud-money" class="text-emerald-400 font-bold text-lg">$0</div>
-                </div>
+            <div class="text-center mt-1">
+                <span class="text-xs font-bold text-gray-300 italic font-sans tracking-widest">ARBOR<span class="text-purple-400">BOY</span> COLOR</span>
             </div>
-        </header>
+        </div>
 
-        <!-- MAIN STAGE -->
-        <main id="game-stage" class="flex-1 relative overflow-hidden flex flex-col">
-            
-            <!-- VIEW: LOADING -->
-            <div id="view-loading" class="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-slate-900 z-50">
-                <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-6"></div>
-                <h2 class="text-2xl font-black text-white tracking-tighter mb-2">INITIALIZING...</h2>
-                <p id="loading-text" class="text-slate-400 mono text-xs typing-effect">Connecting to Arbor Neural Bridge...</p>
+        <div class="controls-area">
+            <div class="d-pad">
+                <div id="btn-up" class="d-btn d-up"></div>
+                <div id="btn-left" class="d-btn d-left"></div>
+                <div class="d-btn d-center"></div> <!-- Center filler -->
+                <div id="btn-right" class="d-btn d-right"></div>
+                <div id="btn-down" class="d-btn d-down"></div>
             </div>
 
-            <!-- VIEW: JOB OFFER -->
-            <div id="view-offer" class="absolute inset-0 flex flex-col p-6 hidden fade-in bg-slate-900/90">
-                <div class="flex-1 flex flex-col justify-center items-center text-center">
-                    <div class="text-6xl mb-6 filter drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">📄</div>
-                    <div class="bg-blue-500/10 text-blue-400 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-4 border border-blue-500/20">Oportunidad Detectada</div>
-                    <h2 id="offer-title" class="text-3xl md:text-4xl font-black text-white mb-4 leading-tight">...</h2>
-                    <p id="offer-desc" class="text-slate-400 text-sm md:text-base max-w-xs leading-relaxed">...</p>
-                    
-                    <div class="grid grid-cols-2 gap-4 mt-8 w-full max-w-xs">
-                        <div class="bg-slate-800 p-3 rounded text-center border border-slate-700">
-                            <div class="text-[0.6rem] text-slate-500 uppercase">Salario Base</div>
-                            <div class="text-emerald-400 font-mono font-bold text-lg">$<span id="offer-salary">0</span></div>
-                        </div>
-                        <div class="bg-slate-800 p-3 rounded text-center border border-slate-700">
-                            <div class="text-[0.6rem] text-slate-500 uppercase">Dificultad</div>
-                            <div class="text-red-400 font-mono font-bold text-lg">ALTA</div>
-                        </div>
-                    </div>
+            <div class="action-btns">
+                <div class="b-btn-group">
+                    <div id="btn-b" class="round-btn"></div>
+                    <span class="btn-label">B</span>
                 </div>
-                <button id="btn-accept-offer" class="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold text-lg rounded-xl shadow-lg transition-all active:scale-95">
-                    INICIAR PROCESO DE SELECCIÓN
-                </button>
-            </div>
-
-            <!-- VIEW: INTERVIEW (CHAT) -->
-            <div id="view-interview" class="absolute inset-0 flex flex-col hidden bg-slate-900">
-                <div id="chat-feed" class="flex-1 overflow-y-auto p-4 flex flex-col gap-2 scroll-smooth">
-                    <!-- Messages injected here -->
-                </div>
-                <form id="chat-form" class="p-3 bg-slate-800 border-t border-slate-700 flex gap-2">
-                    <input type="text" id="chat-input" class="flex-1 bg-slate-900 border border-slate-600 text-white px-4 py-3 rounded-lg focus:outline-none focus:border-blue-500 transition-colors" placeholder="Escribe tu respuesta..." autocomplete="off">
-                    <button type="submit" class="bg-blue-600 text-white px-4 rounded-lg hover:bg-blue-500 transition-colors">
-                        ➤
-                    </button>
-                </form>
-            </div>
-
-            <!-- VIEW: WORK DASHBOARD -->
-            <div id="view-work" class="absolute inset-0 flex flex-col p-4 hidden bg-slate-900">
-                <div class="text-center mb-4">
-                    <h3 class="text-slate-400 text-xs uppercase tracking-widest">DÍA LABORAL <span id="day-counter">1</span></h3>
-                    <div class="flex justify-center gap-1 mt-2">
-                        <span id="dot-1" class="w-2 h-2 rounded-full bg-slate-700"></span>
-                        <span id="dot-2" class="w-2 h-2 rounded-full bg-slate-700"></span>
-                        <span id="dot-3" class="w-2 h-2 rounded-full bg-slate-700"></span>
-                    </div>
-                </div>
-
-                <div class="flex-1 flex items-center justify-center perspective-1000">
-                    <!-- TASK CARD -->
-                    <div id="task-card" class="w-full max-w-sm bg-slate-800 border border-slate-600 rounded-xl p-6 shadow-2xl relative slide-up">
-                        <div class="absolute -top-3 left-6 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded uppercase">Prioridad Alta</div>
-                        <div class="mb-6">
-                            <h4 class="text-lg font-bold text-white mb-2" id="task-title">Incidente #404</h4>
-                            <p class="text-slate-400 text-sm leading-relaxed" id="task-desc">...</p>
-                        </div>
-                        
-                        <div class="space-y-3">
-                            <button id="btn-opt-a" class="w-full p-4 bg-slate-700 hover:bg-slate-600 border border-slate-600 hover:border-slate-500 rounded-lg text-left transition-all active:scale-98 group">
-                                <span class="block text-xs text-blue-400 font-bold mb-1 group-hover:text-blue-300">OPCIÓN A</span>
-                                <span id="txt-opt-a" class="text-sm text-slate-200">...</span>
-                            </button>
-                            <button id="btn-opt-b" class="w-full p-4 bg-slate-700 hover:bg-slate-600 border border-slate-600 hover:border-slate-500 rounded-lg text-left transition-all active:scale-98 group">
-                                <span class="block text-xs text-purple-400 font-bold mb-1 group-hover:text-purple-300">OPCIÓN B</span>
-                                <span id="txt-opt-b" class="text-sm text-slate-200">...</span>
-                            </button>
-                        </div>
-                    </div>
+                <div class="a-btn-group">
+                    <div id="btn-a" class="round-btn"></div>
+                    <span class="btn-label">A</span>
                 </div>
             </div>
+        </div>
 
-            <!-- VIEW: SUMMARY -->
-            <div id="view-summary" class="absolute inset-0 flex flex-col p-8 hidden items-center justify-center bg-slate-900/95 z-40">
-                <div class="text-6xl mb-4" id="summary-icon">🎉</div>
-                <h2 class="text-3xl font-black text-white mb-2">INFORME DIARIO</h2>
-                <div class="w-full h-px bg-slate-700 my-4"></div>
-                <div class="space-y-4 w-full max-w-xs text-center">
-                    <div>
-                        <div class="text-xs text-slate-500 uppercase">Ganancias Totales</div>
-                        <div class="text-3xl font-mono font-bold text-emerald-400" id="summary-money">$0</div>
-                    </div>
-                    <div>
-                        <div class="text-xs text-slate-500 uppercase">Evaluación de Desempeño</div>
-                        <p class="text-sm text-slate-300" id="summary-text">...</p>
-                    </div>
-                </div>
-                <button id="btn-restart" class="mt-8 px-8 py-3 bg-white text-slate-900 font-bold rounded hover:bg-slate-200 transition-colors">
-                    SIGUIENTE TURNO
-                </button>
-            </div>
-
-        </main>
+        <div class="option-btns">
+            <div id="btn-select" class="pill-btn"></div>
+            <div id="btn-start" class="pill-btn"></div>
+        </div>
+        <div class="flex gap-8 mt-1 text-[8px] font-bold text-gray-600 font-sans uppercase tracking-widest">
+            <span>Select</span>
+            <span>Start</span>
+        </div>
     </div>
 
-    <!-- AUDIO ENGINE (HIDDEN) -->
-    <div id="audio-toggle" class="fixed bottom-4 right-4 text-xs text-slate-600 cursor-pointer">🔊 SOUND ON</div>
+    <!-- AUDIO HINT -->
+    <div class="fixed top-4 left-4 text-white text-[10px] opacity-50">
+        ARROWS / WASD to Move<br>
+        Z / ENTER = A (Select)<br>
+        X / ESC = B (Back)
+    </div>
 
     <script type="module" src="./game.js"></script>
 </body>

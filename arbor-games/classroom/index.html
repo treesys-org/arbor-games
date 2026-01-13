@@ -34,8 +34,20 @@
             position: absolute; top: -25px; left: 0; background: #000; color: #fff;
             padding: 5px 15px; font-family: 'Press Start 2P', cursive; font-size: 0.8rem; border: 4px solid #000;
         }
-        .next-arrow { position: absolute; bottom: 10px; right: 20px; animation: bounce 1s infinite; font-size: 1.5rem; color: #000; }
-        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+        
+        /* NEXT BUTTON */
+        .next-btn {
+            position: absolute; bottom: 20px; right: 20px;
+            background: #4ade80; color: #000;
+            border: 4px solid #000; font-family: 'Press Start 2P'; font-size: 1rem;
+            padding: 15px 20px; cursor: pointer; box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+            z-index: 50; display: none; text-transform: uppercase;
+        }
+        .next-btn:disabled { 
+            background: #999; color: #555; border-color: #555; 
+            cursor: wait; box-shadow: none; transform: translate(2px, 2px);
+        }
+        .next-btn:active { transform: translate(4px, 4px); box-shadow: none; }
 
         /* JUDGE OVERLAY (Buttons) */
         #input-overlay {
@@ -87,9 +99,11 @@
 
         /* MOBILE RESPONSIVE OVERRIDES */
         @media (max-width: 768px) {
-            .dialogue-box { font-size: 1.3rem; height: auto; bottom: 10px; padding: 15px; }
+            .dialogue-box { font-size: 1.3rem; height: auto; bottom: 10px; padding: 15px; padding-bottom: 60px; /* Space for button */ }
             .judge-btn { font-size: 0.8rem; padding: 1rem; }
             
+            .next-btn { bottom: 20px; right: 20px; font-size: 0.8rem; padding: 10px 15px; }
+
             #input-overlay { bottom: 180px; }
             
             /* Move text input to TOP on mobile to avoid keyboard overlap */
@@ -114,7 +128,8 @@
         <div id="dialogue-box" class="dialogue-box">
             <div id="speaker-name" class="speaker-name">???</div>
             <div id="dialogue-text"></div>
-            <div class="next-arrow">▼</div>
+            <!-- NEXT BUTTON INSIDE WRAPPER, BUT OUTSIDE BOX FOR VISUAL LAYERING -->
+            <button id="btn-next" class="next-btn">NEXT ▶</button>
         </div>
 
         <!-- UI: Dramatic Shout -->
