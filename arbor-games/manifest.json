@@ -19,13 +19,12 @@
     "version": "1.0.0"
   },
   {
-    "id": "primer-trabajo",
-    "name": "Primer Trabajo",
+    "id": "firstjob",
+    "name": "First Job: Corp Sim",
     "icon": "💼",
-    "description": "Simula tu primer día en un nuevo trabajo basado en lo que estás estudiando.",
-    "path": "./arbor-games/primer-trabajo/index.html",
+    "description": "Simulador de trabajo RPG. Gestiona un edificio generado proceduralmente. Atiende llamadas y clientes basándote en el tema de estudio. La IA define tu empresa.",
+    "path": "./arbor-games/firstjob/index.html",
     "author": "Arbor Official",
-    "version": "1.0.0"
-  },
-
+    "version": "3.0.0"
+  }
 ]

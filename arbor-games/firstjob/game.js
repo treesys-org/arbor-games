@@ -1,9 +1,10 @@
 
 
 /**
- * PRIMER TRABAJO: CORP SIM (REMASTERED)
+ * FIRST JOB: CORP SIM (REMASTERED)
  * A Procedural Office Simulator.
- * Features: Job Interview, Stress System, Neural UI, NPCs, Coffee Mechanics.
+ * Features: Job Interview (6 Questions), Stress System, Neural UI, NPCs, Coffee Mechanics.
+ * Update: Text-based Tasks.
  */
 
 // --- 0. CONFIG & AUDIO ---
@@ -120,16 +121,16 @@ class SpriteGen {
 
     static get recruiter() {
         return this.create(64, 64, (ctx) => {
-             // Silhouette style
-             ctx.fillStyle = '#1e293b';
+             // Silhouette style - LIGHTER GREY to pop against dark BG
+             ctx.fillStyle = '#94a3b8'; 
              ctx.beginPath();
              ctx.arc(32, 24, 16, 0, Math.PI*2); // Head
              ctx.fill();
              ctx.beginPath();
              ctx.arc(32, 64, 24, Math.PI, 0); // Shoulders
              ctx.fill();
-             // Eyes (Glowing)
-             ctx.fillStyle = '#fff';
+             // Eyes (Dark)
+             ctx.fillStyle = '#0f172a';
              ctx.fillRect(26, 22, 4, 2);
              ctx.fillRect(34, 22, 4, 2);
         });
@@ -219,6 +220,16 @@ class Input {
     }
 
     onKey(e, isDown) {
+        // If typing, ignore game controls
+        if (document.activeElement.tagName === 'INPUT') {
+            if (e.key === 'Enter' && isDown) {
+                 // Special hook for typing enter
+                 const btn = document.getElementById('btn-submit-task');
+                 if (btn) btn.click();
+            }
+            return; 
+        }
+
         const map = {
             'ArrowUp': 'UP', 'w': 'UP',
             'ArrowDown': 'DOWN', 's': 'DOWN',
@@ -394,7 +405,17 @@ class Game {
         this.camera = { x:0, y:0 };
         
         this.data = { company: "Arbor Corp", depts: ["Sales", "HR", "Dev"] };
-        this.interview = { q: "Why are you here?", opts: ["Money", "Passion"], correct: 1 };
+        // Default 6 Questions
+        this.interviewQuestions = [
+            { q: "Why do you want this job?", opts: ["Money", "Growth"], correct: 1 },
+            { q: "Define 'Hard Work'.", opts: ["Hours", "Results"], correct: 1 },
+            { q: "Team player?", opts: ["Yes", "Solo"], correct: 0 },
+            { q: "Under pressure?", opts: ["Panic", "Focus"], correct: 1 },
+            { q: "Weakness?", opts: ["None", "Honesty"], correct: 1 },
+            { q: "Salary?", opts: ["High", "Fair"], correct: 1 }
+        ];
+        this.interviewRound = 0;
+        this.interviewScore = 0;
         
         this.activeTask = null;
         this.score = 0;
@@ -402,6 +423,16 @@ class Game {
         this.maxStress = 100;
         this.msg = { text: "", timer: 0 };
         this.phrases = ["¡Sinergia!", "ASAP", "Ping me", "Circle back", "Bandwidth?", "Touch base", "Pivotar", "¿Café?"];
+
+        // DOM Elements for Typing
+        this.els = {
+            taskOverlay: document.getElementById('task-input-layer'),
+            taskPrompt: document.getElementById('task-prompt-text'),
+            taskInput: document.getElementById('task-answer-input'),
+            taskSubmit: document.getElementById('btn-submit-task')
+        };
+        
+        this.els.taskSubmit.addEventListener('click', () => this.resolveTypingTask());
 
         this.state = 'INIT'; 
         this.frame = 0;
@@ -414,7 +445,7 @@ class Game {
         this.state = 'LOADING';
         
         // Fetch Context
-        let contextText = "Business Ethics";
+        let contextText = "Corporate Life";
         if(window.Arbor && window.Arbor.content) {
             try { 
                 const c = await window.Arbor.content.getNext(); 
@@ -431,7 +462,7 @@ class Game {
                 Generate a JSON object with:
                 1. "company": A fictional company name related to context.
                 2. "depts": Array of 3 department names.
-                3. "interview": Object with "q" (Interview question), "opts" (Array of 2 short answers), "correct" (index 0 or 1).
+                3. "interview": Array of 6 objects. Each: {"q": "Question?", "opts": ["Short A", "Short B"], "correct": 0 or 1}.
                 JSON format only. No markdown.
                 `;
                 const res = await window.Arbor.ai.chat([{role:'user',content:prompt}]);
@@ -440,12 +471,15 @@ class Game {
                 
                 this.data.company = json.company;
                 this.data.depts = json.depts;
-                this.data.interview = json.interview; // {q, opts, correct}
+                if (json.interview && json.interview.length >= 6) {
+                    this.interviewQuestions = json.interview;
+                }
 
              } catch(e) { console.error("AI Error", e); }
         }
 
         this.state = 'INTERVIEW';
+        this.interviewRound = 0;
         this.menu = { sel: 0 };
         
         requestAnimationFrame(this.loop);
@@ -489,7 +523,7 @@ class Game {
             const spot = spots[Math.floor(Math.random()*spots.length)];
             this.activeTask = { z: floorIdx, x: spot.x, y: spot.y, type: 'PHONE', timer: 1000 };
             floor.map[spot.y][spot.x] = 6; // Ringing
-            this.showMessage(`LLAMADA: ${floor.name} (Piso ${floorIdx})`);
+            this.showMessage(`TICKET: ${floor.name} (Piso ${floorIdx})`);
             this.audio.sfxSelect();
         }
     }
@@ -540,16 +574,30 @@ class Game {
         }
 
         if (this.state === 'INTERVIEW') {
+            const q = this.interviewQuestions[this.interviewRound];
+            
             if(this.input.consume('UP')) { this.menu.sel = 0; this.audio.sfxMove(); }
             if(this.input.consume('DOWN')) { this.menu.sel = 1; this.audio.sfxMove(); }
             if(this.input.consume('A')) {
-                if(this.menu.sel === this.data.interview.correct) {
+                // Check Answer
+                if (this.menu.sel === q.correct) {
+                    this.interviewScore++;
                     this.audio.sfxSuccess();
-                    this.startGameWorld();
                 } else {
-                    this.audio.sfxBurnout();
-                    this.state = 'GAMEOVER';
-                    this.msg.text = "NO CONTRATADO";
+                    this.audio.sfxError();
+                }
+
+                // Advance
+                this.interviewRound++;
+                if (this.interviewRound >= this.interviewQuestions.length) {
+                    // Result
+                    if (this.interviewScore >= 4) {
+                        this.startGameWorld();
+                    } else {
+                        this.audio.sfxBurnout();
+                        this.state = 'GAMEOVER';
+                        this.msg.text = "NO CONTRATADO (Score: " + this.interviewScore + "/6)";
+                    }
                 }
             }
         }
@@ -594,12 +642,8 @@ class Game {
                 this.checkInteract();
             }
         }
-        else if(this.state === 'MENU') {
-            if(this.input.consume('UP')) { this.menu.sel = 0; this.audio.sfxMove(); }
-            if(this.input.consume('DOWN')) { this.menu.sel = 1; this.audio.sfxMove(); }
-            if(this.input.consume('A')) this.resolveTask();
-        }
-
+        // TYPING STATE - Input handled via DOM overlay, not keyboard listener here
+        
         // Camera Follow (Follow visual position not grid)
         const targetX = (this.player.vx) - (CONFIG.W / 2);
         const targetY = (this.player.vy) - (CONFIG.H / 2);
@@ -689,41 +733,55 @@ class Game {
     }
 
     drinkCoffee() {
-        this.stress = Math.max(0, this.stress - 25);
-        this.showMessage("Pausa: -25% Estrés. Refrescante.");
+        // BALANCING: Reduced relief from 25 to 15 to make game harder
+        this.stress = Math.max(0, this.stress - 15);
+        this.showMessage("Pausa: -15% Estrés. Refrescante.");
         this.audio.sfxDrink();
-        // Particle effect could go here
     }
 
     async startMinigame() {
         this.state = 'LOADING_TASK';
         this.audio.sfxSelect();
         
-        // Default Question
-        let q = { text: "El cliente exige un reembolso.", opts: ["Aprobar", "Rechazar"], correct: 0 };
+        let q = { text: "El sistema está lento.", answer: "reiniciar" };
         
-        // AI Generate
+        // AI Generate Task
         if(window.Arbor && window.Arbor.ai) {
-            const p = `Context: ${this.contextText.substring(0,300)}. Generate simple workplace problem with 2 options (one correct). JSON: {"text":"Problem", "opts":["Good", "Bad"], "correct":0}. Language: Spanish.`;
+            const p = `Context: ${this.contextText.substring(0,300)}. 
+            Generate a workplace IT problem and a one-word solution.
+            Language: Spanish.
+            JSON: {"text":"Description of problem", "answer":"keyword"}`;
             try {
                 const res = await window.Arbor.ai.chat([{role:'user',content:p}]);
                 q = JSON.parse(res.text.replace(/```json/g,'').replace(/```/g,''));
             } catch(e) {}
         }
 
-        this.menu = { q, sel: 0 };
-        this.state = 'MENU';
+        this.currentTaskData = q;
+        this.state = 'TYPING_TASK';
+        
+        // Show DOM Overlay
+        this.els.taskOverlay.style.display = 'flex';
+        this.els.taskPrompt.innerText = `> ${q.text}`;
+        this.els.taskInput.value = '';
+        this.els.taskInput.focus();
     }
 
-    resolveTask() {
-        if(this.menu.sel === this.menu.q.correct) {
+    resolveTypingTask() {
+        const val = this.els.taskInput.value.trim().toLowerCase();
+        const correct = this.currentTaskData.answer.toLowerCase();
+        
+        this.els.taskOverlay.style.display = 'none';
+
+        if(val.includes(correct) || correct.includes(val)) {
             this.score += 100;
-            this.stress = Math.max(0, this.stress - 20); // Relief
-            this.showMessage("¡Resuelto! -20% Estrés");
+            // BALANCING: Reduced relief from 20 to 15
+            this.stress = Math.max(0, this.stress - 15); 
+            this.showMessage("¡SOLUCIONADO! -15% Estrés");
             this.audio.sfxSuccess();
         } else {
             this.stress += 15;
-            this.showMessage("Error... +15% Estrés");
+            this.showMessage(`Error... Solución: ${correct}`);
             this.audio.sfxError();
         }
         
@@ -825,7 +883,9 @@ class Game {
         this.ctx.restore();
 
         // UI Layer
-        this.drawUI();
+        if (this.state !== 'TYPING_TASK') {
+            this.drawUI();
+        }
     }
 
     drawUI() {
@@ -871,38 +931,6 @@ class Game {
             this.ctx.fillText(this.msg.text, CONFIG.W/2, CONFIG.H-12);
             this.ctx.textAlign = 'left';
         }
-
-        // Menu Overlay
-        if(this.state === 'MENU') {
-            this.ctx.fillStyle = 'rgba(0,0,0,0.95)';
-            this.ctx.fillRect(20, 40, CONFIG.W-40, CONFIG.H-80);
-            
-            this.ctx.strokeStyle = Palette.text;
-            this.ctx.lineWidth = 2;
-            this.ctx.strokeRect(20, 40, CONFIG.W-40, CONFIG.H-80);
-
-            this.ctx.fillStyle = '#fff';
-            this.ctx.font = '10px monospace';
-            this.ctx.fillText("PROBLEMA DETECTADO:", 30, 60);
-
-            // Word Wrap Question
-            const words = this.menu.q.text.split(' ');
-            let line = "", y=80;
-            words.forEach(w => {
-                if(this.ctx.measureText(line+w).width > CONFIG.W-70) {
-                    this.ctx.fillText(line, 30, y); line=""; y+=12;
-                }
-                line+=w+" ";
-            });
-            this.ctx.fillText(line, 30, y);
-
-            // Options
-            y+=20;
-            this.menu.q.opts.forEach((o, i) => {
-                this.ctx.fillStyle = (i === this.menu.sel) ? '#facc15' : '#94a3b8';
-                this.ctx.fillText((i === this.menu.sel ? "> " : "  ") + o, 30, y + (i*15));
-            });
-        }
     }
 
     drawInterview() {
@@ -917,22 +945,26 @@ class Game {
         this.ctx.fillStyle = grad;
         this.ctx.fillRect(0,0,CONFIG.W,CONFIG.H);
 
-        // Recruiter
+        // Recruiter (Drawn clearer now)
         this.ctx.drawImage(this.sprites.recruiter, CONFIG.W/2 - 32, 40);
 
         this.ctx.fillStyle = '#fff';
         this.ctx.font = '12px "Chakra Petch", monospace';
         this.ctx.textAlign = 'center';
         
-        // Question
-        this.ctx.fillText("ENTREVISTA DE TRABAJO", CONFIG.W/2, 30);
+        // Header & Counter
+        this.ctx.fillText(`ENTREVISTA (${this.interviewRound+1}/6)`, CONFIG.W/2, 30);
         this.ctx.fillStyle = '#94a3b8';
         this.ctx.font = '10px monospace';
         
-        const words = this.data.interview.q.split(' ');
-        let line = "", y=120;
+        // Get Question
+        const q = this.interviewQuestions[this.interviewRound];
+
+        // Word Wrap Question
+        const words = q.q.split(' ');
+        let line = "", y=125;
         words.forEach(w => {
-            if(this.ctx.measureText(line+w).width > 200) {
+            if(this.ctx.measureText(line+w).width > 240) {
                 this.ctx.fillText(line, CONFIG.W/2, y); line=""; y+=12;
             }
             line+=w+" ";
@@ -940,10 +972,10 @@ class Game {
         this.ctx.fillText(line, CONFIG.W/2, y);
 
         // Options
-        y += 30;
-        this.data.interview.opts.forEach((o, i) => {
+        y += 25;
+        q.opts.forEach((o, i) => {
             this.ctx.fillStyle = (i === this.menu.sel) ? '#22d3ee' : '#475569';
-            this.ctx.fillText((i === this.menu.sel ? "> " : "") + o.toUpperCase(), CONFIG.W/2, y + (i*20));
+            this.ctx.fillText((i === this.menu.sel ? "> " : "") + o.toUpperCase(), CONFIG.W/2, y + (i*16));
         });
 
         this.ctx.textAlign = 'left';

@@ -1,0 +1,7 @@
+{
+  "name": "First Job: Corp Sim",
+  "description": "Simulador de trabajo RPG. Atiende llamadas y clientes escribiendo la solución técnica correcta basada en el contexto.",
+  "icon": "💼",
+  "version": "3.1.0",
+  "author": "Arbor Official"
+}

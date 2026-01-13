@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Primer Trabajo: Workstation</title>
+    <title>First Job: Workstation</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=VT323&display=swap" rel="stylesheet">
     <style>
@@ -91,6 +91,80 @@
             object-fit: contain; /* Keeps aspect ratio */
             border-radius: 4px;
             box-shadow: 0 0 20px rgba(14, 165, 233, 0.1);
+        }
+
+        /* --- INPUT OVERLAY FOR TASKS --- */
+        #task-input-layer {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 20;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            backdrop-filter: blur(2px);
+        }
+
+        .terminal-window {
+            width: 100%;
+            max-width: 500px;
+            background: #0f172a;
+            border: 2px solid #22d3ee;
+            box-shadow: 0 0 20px rgba(34, 211, 238, 0.2);
+            padding: 2px;
+        }
+        
+        .term-header {
+            background: #22d3ee;
+            color: #000;
+            font-family: 'VT323', monospace;
+            padding: 4px 8px;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .term-body {
+            padding: 20px;
+            font-family: 'VT323', monospace;
+        }
+
+        #task-prompt-text {
+            color: #cbd5e1;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            line-height: 1.2;
+        }
+
+        #task-answer-input {
+            width: 100%;
+            background: #000;
+            border: none;
+            border-bottom: 2px solid #22d3ee;
+            color: #22d3ee;
+            font-family: 'VT323', monospace;
+            font-size: 2rem;
+            padding: 10px;
+            outline: none;
+            text-transform: uppercase;
+        }
+
+        #btn-submit-task {
+            margin-top: 20px;
+            width: 100%;
+            background: #1e293b;
+            color: #22d3ee;
+            border: 1px solid #22d3ee;
+            padding: 10px;
+            font-family: 'Chakra Petch', sans-serif;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        #btn-submit-task:hover {
+            background: #22d3ee;
+            color: #000;
         }
 
         /* --- CONTROLS --- */
@@ -208,9 +282,12 @@
     <!-- UI: Start Screen -->
     <div id="start-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-900 text-cyan-400 p-6">
         <h1 class="text-4xl md:text-6xl font-bold mb-4 font-mono tracking-tighter border-b-4 border-cyan-500 pb-2">CORP_SIM.EXE</h1>
-        <p class="text-sm md:text-base mb-8 text-center max-w-md font-mono opacity-80">
-            INITIALIZING WORKER PROTOCOLS...<br>
-            PLEASE SUBMIT BIOMETRIC DATA TO BEGIN.
+        <p class="text-sm md:text-base mb-8 text-center max-w-md font-mono opacity-80 leading-relaxed">
+            SIMULADOR DE EMPLEO PROCEDURAL.<br><br>
+            - SOBREVIVE a la entrevista (6 Preguntas).<br>
+            - EXPLORA oficinas generadas.<br>
+            - RESUELVE tickets escribiendo la solución.<br>
+            - EVITA el Burnout (El café es tu amigo).
         </p>
         <button id="btn-start" class="px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-bold font-mono text-xl tracking-widest shadow-[0_0_20px_rgba(8,145,178,0.5)] transition-all uppercase active:scale-95">
             BOOT SYSTEM
@@ -237,8 +314,21 @@
         <!-- SCREEN AREA -->
         <div class="screen-container">
             <div class="crt-overlay"></div>
-            <!-- Canvas resolution bumped to 320x240 for clarity -->
+            
+            <!-- CANVAS -->
             <canvas id="game-canvas" width="320" height="240"></canvas>
+
+            <!-- TASK INPUT OVERLAY (Inside CRT area for style) -->
+            <div id="task-input-layer">
+                <div class="terminal-window">
+                    <div class="term-header">TICKET_RESOLVER_v1.0</div>
+                    <div class="term-body">
+                        <div id="task-prompt-text">ERROR: PRINTER JAMMED</div>
+                        <input type="text" id="task-answer-input" placeholder="TYPE SOLUTION..." autocomplete="off">
+                        <button id="btn-submit-task">EXECUTE</button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- ACTION BUTTONS AREA -->
