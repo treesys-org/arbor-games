@@ -101,13 +101,13 @@
 
     <!-- GAME HUD -->
     <div id="game-ui" class="relative z-10 flex flex-col h-screen p-4 hidden">
-        <!-- Top Bar -->
-        <header class="flex justify-between items-end mb-4">
-            <div>
+        <!-- Top Bar: Updated with Z-Index 50 and pointer-events-none -->
+        <header class="flex justify-between items-end mb-4 relative z-50 pointer-events-none">
+            <div class="pointer-events-auto">
                 <h1 class="text-2xl md:text-3xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600">MEMORY<br>GARDEN</h1>
                 <p id="lesson-topic" class="text-[0.6rem] md:text-xs text-emerald-400 font-mono uppercase tracking-widest mt-1 opacity-0 transition-opacity duration-1000 max-w-[200px] truncate">...</p>
             </div>
-            <div class="text-right">
+            <div class="text-right pointer-events-auto">
                 <div class="text-xs text-gray-400 font-bold uppercase">Score</div>
                 <div id="score-display" class="text-2xl md:text-4xl font-black font-mono leading-none">0</div>
                 <div class="combo-bar-container w-20 md:w-32 ml-auto">
@@ -117,7 +117,7 @@
         </header>
 
         <!-- Grid -->
-        <main class="flex-1 perspective-container flex items-center justify-center">
+        <main class="flex-1 perspective-container flex items-center justify-center relative z-0">
             <!-- Increased max-width for 4K support -->
             <div id="card-grid" class="grid grid-cols-3 md:grid-cols-4 gap-3 md:gap-6 w-full max-w-[95vw] mx-auto h-full max-h-[85vh] content-center">
                 <!-- Cards Injected Here -->

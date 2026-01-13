@@ -1014,5 +1014,8 @@ class Game {
     }
 }
 
-// Start
-window.onload = () => new Game();
+// Start Listener
+document.getElementById('btn-start').addEventListener('click', () => {
+    document.getElementById('start-screen').style.display = 'none';
+    new Game();
+});
