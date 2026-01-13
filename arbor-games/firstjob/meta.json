@@ -1,6 +1,7 @@
+
 {
   "name": "First Job: Corp Sim",
-  "description": "Simulador de trabajo RPG. Gana dinero ($) resolviendo tickets basados en tu lección actual y compra té para controlar el estrés.",
+  "description": "Simulador de trabajo RPG. Recibe llamadas al móvil, sube a los pisos indicados y gestiona tu estrés comprando comida en la cafetería.",
   "icon": "💼",
   "version": "3.2.0",
   "author": "Arbor Official"
