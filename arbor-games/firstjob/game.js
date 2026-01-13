@@ -3,6 +3,7 @@
 /**
  * FIRST JOB: CORP SIM (REMASTERED v3.2)
  * Features: Smartphone Calls, Cafeteria Shop, Elevator UI.
+ * New: Save System & NPC Memory.
  */
 
 // --- 0. CONFIG & AUDIO ---
@@ -465,6 +466,8 @@ class Game {
         ], selected: 0 };
         this.speedBoost = 0;
         
+        // GAME SAVE STATE (Persistent)
+        this.memories = {}; // NPC Memories
         this.score = 0;
         this.money = 0;
         this.tasksSolved = 0; 
@@ -499,6 +502,21 @@ class Game {
         this.state = 'CONNECTING_CALL';
         requestAnimationFrame(this.loop);
         
+        // --- LOAD SAVE DATA ---
+        if (window.Arbor && window.Arbor.storage) {
+            try {
+                // Support both sync (current bridge) and async (future bridge)
+                const saved = await window.Arbor.storage.load('career_save_v1');
+                if (saved) {
+                    this.money = saved.money || 0;
+                    this.tasksSolved = saved.tasksSolved || 0;
+                    this.memories = saved.memories || {};
+                    // We do not restore stress to give player a fresh start each session
+                    console.log("Save loaded:", saved);
+                }
+            } catch(e) { console.warn("Save load error:", e); }
+        }
+
         let contextText = "Corporate Office Work";
         if(window.Arbor && window.Arbor.content) {
             try { 
@@ -515,9 +533,9 @@ class Game {
                 Generate JSON:
                 { "company": "Company Name", "depts": ["Dept1", "Dept2", "Dept3"], "interview": [{"q":"Question?", "keywords":["k1"]}] }
                 `;
-                const res = await window.Arbor.ai.chat([{role:'user',content:prompt}]);
-                const clean = res.text.replace(/```json/g,'').replace(/```/g,'');
-                const json = JSON.parse(clean);
+                
+                // SIMPLIFIED CALL: Use askJSON to handle parsing
+                const json = await window.Arbor.ai.askJSON(prompt);
                 
                 this.data.company = json.company;
                 this.data.depts = json.depts;
@@ -534,6 +552,17 @@ class Game {
         }, 2500);
     }
 
+    saveGame() {
+        if (window.Arbor && window.Arbor.storage) {
+            window.Arbor.storage.save('career_save_v1', {
+                money: this.money,
+                tasksSolved: this.tasksSolved,
+                memories: this.memories,
+                timestamp: Date.now()
+            });
+        }
+    }
+
     getHumanSprite(shirt, hair, isVendor) {
         const key = `${shirt}-${hair}-${isVendor}`;
         if (!this.humanCache[key]) {
@@ -544,7 +573,15 @@ class Game {
 
     prepareInterviewUI() {
         this.els.taskOverlay.style.display = 'flex';
-        this.els.taskHeader.innerText = `CALL: RECRUITER [${this.interviewRound+1}/${this.interviewQuestions.length}]`;
+        
+        // --- MEMORY SYSTEM: RECRUITER REACTION ---
+        let headerText = `CALL: RECRUITER [${this.interviewRound+1}/${this.interviewQuestions.length}]`;
+        if (this.interviewRound === 0 && this.memories.rejections > 0) {
+             // The NPC remembers you failed before!
+             headerText += ` (ATTEMPT #${this.memories.rejections + 1})`;
+        }
+        
+        this.els.taskHeader.innerText = headerText;
         this.els.taskPrompt.innerText = ""; 
         this.els.taskInput.placeholder = "ANSWER HERE...";
         this.els.taskInput.value = '';
@@ -591,12 +628,20 @@ class Game {
         
         if (passed) {
             this.money += 200;
+            // SAVE MEMORY: HIRED
+            this.memories.hired = true;
+            this.saveGame();
+            
             this.els.taskPrompt.innerText = `HIRED!\nWelcome to ${this.data.company}.\n(+$200 Signing Bonus)`;
             this.els.taskSubmit.onclick = () => {
                 this.resetInputUI();
                 this.startGameWorld();
             };
         } else {
+            // SAVE MEMORY: REJECTED
+            this.memories.rejections = (this.memories.rejections || 0) + 1;
+            this.saveGame();
+
             this.els.taskPrompt.innerText = `REJECTED.\nTry again.`;
             this.els.taskSubmit.onclick = () => window.location.reload();
         }
@@ -850,6 +895,9 @@ class Game {
             this.money -= item.cost;
             this.stress = Math.max(0, this.stress + item.stress);
             if(item.speed) this.speedBoost = 600; // 10 seconds approx
+            
+            this.saveGame(); // SAVE ON PURCHASE
+            
             this.audio.sfxEat();
             this.showMessage(`¡${item.n} consumido!`);
             this.shop.active = false;
@@ -877,8 +925,8 @@ class Game {
             Lang: Spanish.
             JSON: {"text":"'Problem description' (max 6 words)", "answer":"OneWordSolution"}`;
             try {
-                const res = await window.Arbor.ai.chat([{role:'user',content:p}]);
-                q = JSON.parse(res.text.replace(/```json/g,'').replace(/```/g,''));
+                // SIMPLIFIED CALL: Use askJSON
+                q = await window.Arbor.ai.askJSON(p);
             } catch(e) {}
         }
 
@@ -904,6 +952,8 @@ class Game {
             this.score += reward;
             this.money += reward;
             this.stress = Math.max(0, this.stress - 20); // Big relief
+            
+            this.saveGame(); // SAVE ON SUCCESS
             
             this.showMessage(`¡GRACIAS! +$${reward}`);
             this.audio.sfxCash();

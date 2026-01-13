@@ -391,31 +391,16 @@ class GameEngine {
             The user's language is ${langName}.
             Generate 3 distinct topics based on the context. For each topic, create a short question, a CORRECT answer (max 3 words), and a PLAUSIBLE WRONG answer (max 3 words).
             ALL output (topics, questions, answers) MUST be in ${langName}.
-            Return ONLY a valid JSON array matching this schema, without any other text or markdown:
+            Return ONLY a valid JSON array matching this schema:
             [
                 { "topic": "Short Topic Name", "q": "Question text", "correct": "Correct Answer", "wrong": "Wrong Answer" }
             ]
             `;
             
             console.log("Requesting questions from Arbor bridge...");
-            const aiRes = await window.Arbor.ai.chat([{role: "user", content: prompt}]);
-            const jsonText = aiRes.text;
             
-            // ROBUST PARSING LOGIC (from Memory Garden)
-            let json = null;
-            try {
-                const cleanResponse = jsonText.replace(/```json/g, '').replace(/```/g, '');
-                const match = cleanResponse.match(/\[[\s\S]*\]/);
-                if (match) {
-                    json = JSON.parse(match[0]);
-                } else {
-                    json = JSON.parse(cleanResponse);
-                }
-            } catch (e) {
-                console.error("Failed to parse AI JSON for Classroom Sim:", e, "Raw response:", jsonText);
-                throw new Error("AI returned invalid data format.");
-            }
-
+            // SIMPLIFIED CALL: askJSON handles parsing
+            const json = await window.Arbor.ai.askJSON(prompt);
 
             if (json && Array.isArray(json) && json.length > 0) {
                 this.lessonData.concepts = json.map(j => ({ ...j, status: 'pending' }));

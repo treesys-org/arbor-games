@@ -107,4 +107,3 @@ export class SpriteGen {
         return c;
     }
 }
-

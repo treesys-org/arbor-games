@@ -1,5 +1,4 @@
 
-
 /**
  * GAME.JS
  * Core Logic for Memory Garden: Overgrowth
@@ -117,25 +116,13 @@ Output: ONLY a valid JSON array: [{"t": "Term", "d": "Definition"}, ...]
 Do NOT use markdown.
         `;
         
-        // 3. Send the prompt to the generic AI chat function
-        console.log("Sending prompt to AI via generic bridge...");
-        const aiResponse = await window.Arbor.ai.chat([{ role: 'user', content: prompt }]);
-        const jsonText = aiResponse.text;
+        // 3. Send the prompt to the SIMPLIFIED bridge
+        console.log("Sending prompt to AI via clean bridge...");
         
-        // 4. Parse the response
-        try {
-            const cleanResponse = jsonText.replace(/```json/g, '').replace(/```/g, '');
-            const match = cleanResponse.match(/\[[\s\S]*\]/);
-            if (match) {
-                const pairs = JSON.parse(match[0]);
-                return { title: lesson.title, pairs: pairs };
-            }
-            const pairs = JSON.parse(cleanResponse);
-            return { title: lesson.title, pairs: pairs };
-        } catch (e) {
-            console.error("Failed to parse AI JSON for Memory Game:", e, "Raw response:", jsonText);
-            throw new Error("AI returned invalid data format.");
-        }
+        // askJSON handles markdown stripping and JSON.parsing automatically
+        const pairs = await window.Arbor.ai.askJSON(prompt);
+        
+        return { title: lesson.title, pairs: pairs };
     }
 
     handleError(msg) {
@@ -148,7 +135,7 @@ Do NOT use markdown.
         document.getElementById('game-ui').classList.remove('hidden');
     }
 
-    // --- GRID LOGIC ---
+    // --- Grid Logic ---
     buildGrid(pairs) {
         // Ensure we only take 6 pairs
         const selectedPairs = pairs.slice(0, 6);

@@ -159,3 +159,4 @@ export class FX {
         requestAnimationFrame(() => this.renderLoop());
     }
 }
+
