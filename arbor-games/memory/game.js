@@ -152,12 +152,12 @@ Do NOT use markdown.
         this.els.grid.innerHTML = '';
         cards.forEach((card, index) => {
             const el = document.createElement('div');
-            // Responsive heights: h-24 mobile, h-40 desktop, h-56 XL, h-72 for 4K
-            el.className = 'card-container w-full h-24 md:h-40 xl:h-56 2xl:h-72';
+            // Responsive heights: Significantly reduced to fit screen better (h-20 mobile up to h-40 on massive screens)
+            el.className = 'card-container w-full h-20 md:h-28 lg:h-32 xl:h-40';
             el.innerHTML = `
                 <div class="card" data-index="${index}" data-id="${card.id}">
                     <div class="card-face face-front">
-                        <span class="text-4xl opacity-50">🌿</span>
+                        <span class="text-2xl md:text-4xl opacity-50">🌿</span>
                     </div>
                     <div class="card-face face-back border-b-4 ${card.type === 'TERM' ? 'border-emerald-500' : 'border-yellow-500'}">
                         <span>${card.text}</span>
@@ -214,6 +214,7 @@ Do NOT use markdown.
             }
             this.els.score.innerText = this.state.score;
 
+            // Wait 3 SECONDS (3000ms) before clearing the cards so user can read them
             setTimeout(() => {
                 if(el1) el1.classList.add('matched');
                 if(el2) el2.classList.add('matched');
@@ -234,7 +235,7 @@ Do NOT use markdown.
                 if (this.state.matchedCount === this.state.cards.length) {
                     this.triggerVictory();
                 }
-            }, 300);
+            }, 3000);
 
         } else {
             this.state.combo = 0;

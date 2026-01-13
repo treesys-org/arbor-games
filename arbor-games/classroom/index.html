@@ -101,12 +101,32 @@
             padding: 2rem; border: 8px solid #000; box-shadow: 15px 15px 0 rgba(0,0,0,0.5);
             z-index: 40; display: none; text-transform: uppercase;
         }
+        /* New Class for Positive Feedback */
+        .shout-bubble.is-success {
+            color: #16a34a; /* Green */
+            transform: translate(-50%, -50%) rotate(5deg); /* Slight tilt change for variety */
+        }
+
         .shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
         @keyframes shake { 10%, 90% { transform: translate(-51%, -51%) rotate(-5deg); } 20%, 80% { transform: translate(-49%, -49%) rotate(-5deg); } 30%, 50%, 70% { transform: translate(-52%, -50%) rotate(-5deg); } 40%, 60% { transform: translate(-48%, -50%) rotate(-5deg); } }
 
         /* START MENU */
         #start-screen { position: absolute; inset: 0; background: #111; z-index: 60; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .logo-text { font-family: 'Press Start 2P'; color: #4ade80; text-shadow: 4px 4px 0 #166534; margin-bottom: 2rem; text-align: center; line-height: 1.5; }
+
+        /* RULES OVERLAY */
+        #rules-overlay {
+            position: absolute; inset: 0; background: rgba(0,0,0,0.9); z-index: 55;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            padding: 2rem;
+        }
+        .syllabus-card {
+            background: #fff; color: #000;
+            padding: 2rem; border: 4px solid #4ade80;
+            box-shadow: 10px 10px 0 rgba(74, 222, 128, 0.3);
+            max-width: 600px; width: 100%;
+            font-family: 'VT323', monospace;
+        }
 
         /* ROTATION WARNING */
         #rotate-warning {
@@ -178,6 +198,21 @@
         <div id="text-overlay">
             <input type="text" id="player-input" placeholder="TYPE ANSWER..." maxlength="80" autocomplete="off">
             <button id="btn-submit">SUBMIT</button>
+        </div>
+
+        <!-- UI: Rules/Syllabus -->
+        <div id="rules-overlay">
+            <div class="syllabus-card">
+                <h2 id="rules-title" class="text-3xl md:text-5xl font-black mb-6 text-center underline decoration-4 decoration-green-500">CLASS SYLLABUS</h2>
+                <ul class="space-y-4 text-xl md:text-2xl list-disc pl-6">
+                    <li id="rule-1">...</li>
+                    <li id="rule-2">...</li>
+                    <li id="rule-3">...</li>
+                </ul>
+                <button id="btn-ready" class="mt-8 w-full bg-black text-green-400 font-bold py-3 text-2xl hover:bg-green-600 hover:text-white transition-colors border-2 border-transparent hover:border-black shadow-lg">
+                    I AM READY
+                </button>
+            </div>
         </div>
 
         <!-- UI: Start Screen -->

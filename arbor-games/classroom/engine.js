@@ -33,7 +33,13 @@ const translations = {
         JUDGE_CORRECT: "✅ CORRECT",
         JUDGE_WRONG: "❌ WRONG",
         UNKNOWN_SPEAKER: "???",
-        NEXT_BTN: "NEXT ▶"
+        NEXT_BTN: "NEXT ▶",
+        // Rules
+        RULES_TITLE: "CLASS SYLLABUS",
+        RULE_1: "JUDGE your classmates (Correct vs Incorrect).",
+        RULE_2: "TYPE the answer when the Teacher asks YOU.",
+        RULE_3: "SCORE points to top the ranking.",
+        BTN_READY: "I UNDERSTAND"
     },
     ES: {
         START_CLASS: "EMPEZAR CLASE",
@@ -60,13 +66,27 @@ const translations = {
         JUDGE_CORRECT: "✅ CORRECTO",
         JUDGE_WRONG: "❌ INCORRECTO",
         UNKNOWN_SPEAKER: "???",
-        NEXT_BTN: "SIGUIENTE ▶"
+        NEXT_BTN: "SIGUIENTE ▶",
+        // Rules
+        RULES_TITLE: "SILABARIO DE CLASE",
+        RULE_1: "JUZGA a tus compañeros (Correcto vs Incorrecto).",
+        RULE_2: "ESCRIBE la respuesta cuando el Profesor te pregunte.",
+        RULE_3: "GANA puntos para liderar el ranking.",
+        BTN_READY: "ENTENDIDO"
     }
 };
 
 const lang = (window.Arbor && window.Arbor.user && translations[window.Arbor.user.lang.toUpperCase()]) ? window.Arbor.user.lang.toUpperCase() : 'EN';
+// Set Start Screen Text
 document.getElementById('btn-start').textContent = translations[lang].START_CLASS;
 document.getElementById('start-desc').innerHTML = translations[lang].START_DESC.replace(/\n/g, '<br>');
+
+// Set Rules Screen Text
+document.getElementById('rules-title').textContent = translations[lang].RULES_TITLE;
+document.getElementById('rule-1').textContent = translations[lang].RULE_1;
+document.getElementById('rule-2').textContent = translations[lang].RULE_2;
+document.getElementById('rule-3').textContent = translations[lang].RULE_3;
+document.getElementById('btn-ready').textContent = translations[lang].BTN_READY;
 
 
 class GameEngine {
@@ -251,8 +271,9 @@ class GameEngine {
             ctx.strokeStyle = '#000';
             ctx.lineWidth = 4;
             
-            const bubbleX = -80;
-            const bubbleY = -100;
+            // ADJUSTED BUBBLE COORDINATES TO BE ABOVE HEAD
+            const bubbleX = -60;
+            const bubbleY = -170; // Higher up
             
             ctx.beginPath();
             ctx.moveTo(bubbleX + 20, bubbleY + 40);
@@ -262,6 +283,10 @@ class GameEngine {
             ctx.quadraticCurveTo(bubbleX + 40, bubbleY + 60, bubbleX + 20, bubbleY + 40);
             ctx.stroke();
             ctx.fill();
+            
+            // Little bubbles connecting to head
+            ctx.beginPath(); ctx.arc(bubbleX + 30, bubbleY + 55, 6, 0, Math.PI*2); ctx.stroke(); ctx.fill();
+            ctx.beginPath(); ctx.arc(bubbleX + 25, bubbleY + 70, 4, 0, Math.PI*2); ctx.stroke(); ctx.fill();
 
             ctx.fillStyle = '#000';
             ctx.font = '30px VT323';
@@ -439,14 +464,15 @@ class GameEngine {
             const isCorrect = cleanPlayer.includes(cleanCorrect) || cleanCorrect.includes(cleanPlayer);
 
             if (isCorrect) {
-                this.shout(this.getLine('CORRECT'));
+                this.shout(this.getLine('CORRECT'), true);
                 this.spawnParticles(student.x, student.y, '#4ade80');
                 this.addPlayerScore(20);
                 concept.status = 'correct';
                 await this.showDialogue("PROFESSOR", this.getLine('GOOD_JOB', { answer: concept.correct }));
             } else {
-                this.shout(this.getLine('WRONG'));
+                this.shout(this.getLine('WRONG'), false);
                 this.shakeScreen();
+                this.spawnParticles(student.x, student.y, '#ef4444');
                 concept.status = 'wrong';
                 await this.showDialogue("PROFESSOR", this.getLine('INCORRECT', { answer: concept.correct }));
             }
@@ -466,14 +492,15 @@ class GameEngine {
             const judgmentCorrect = (isRight && playerJudge) || (!isRight && !playerJudge);
 
             if (judgmentCorrect) {
-                this.shout(this.getLine('ACCEPTED'));
+                this.shout(this.getLine('ACCEPTED'), true);
                 this.spawnParticles(this.students[2].x, this.students[2].y, '#4ade80');
                 this.addPlayerScore(10);
                 concept.status = 'correct';
                 await this.showDialogue("PROFESSOR", this.getLine('WELL_SPOTTED'));
             } else {
-                this.shout(this.getLine('OBJECTION'));
+                this.shout(this.getLine('OBJECTION'), false);
                 this.shakeScreen();
+                this.spawnParticles(this.students[2].x, this.students[2].y, '#ef4444');
                 if (isRight) {
                     await this.showDialogue("PROFESSOR", this.getLine('STUDENT_WAS_CORRECT', { name: student.name }));
                 } else {
@@ -566,9 +593,17 @@ class GameEngine {
         }
     }
 
-    shout(text) {
+    shout(text, isGood = false) {
         const el = this.ui.shoutBubble;
         el.innerText = text;
+        
+        // Handle styling for positive/negative outcome
+        if (isGood) {
+            el.classList.add('is-success');
+        } else {
+            el.classList.remove('is-success');
+        }
+        
         el.style.display = 'block';
         el.classList.add('shake');
         setTimeout(() => {
@@ -624,9 +659,20 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-// Start Game
+// --- STATE MANAGEMENT FLOW ---
+
+const startScreen = document.getElementById('start-screen');
+const rulesOverlay = document.getElementById('rules-overlay');
+
+// 1. CLICK START -> SHOW RULES
 document.getElementById('btn-start').addEventListener('click', () => {
-    document.getElementById('start-screen').style.display = 'none';
+    startScreen.style.display = 'none';
+    rulesOverlay.style.display = 'flex'; // Show rules
+});
+
+// 2. CLICK READY -> START GAME
+document.getElementById('btn-ready').addEventListener('click', () => {
+    rulesOverlay.style.display = 'none';
     const engine = new GameEngine(canvas);
     engine.start();
 });
