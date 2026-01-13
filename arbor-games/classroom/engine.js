@@ -1,3 +1,4 @@
+
 /**
  * ENGINE.JS
  * The core logic for Arbor Classroom.
@@ -17,9 +18,9 @@ const translations = {
         GOOD_JOB: `Exactly. "{answer}". Good job.`,
         WRONG: "WRONG!",
         INCORRECT: `Incorrect. I was looking for "{answer}".`,
-        ACCEPTED: "ACCEPTED!",
+        ACCEPTED: "GOOD!",
         WELL_SPOTTED: "Well spotted. Correct.",
-        OBJECTION: "OBJECTION!",
+        OBJECTION: "BAD!",
         STUDENT_WAS_CORRECT: `No! {name} was correct.`,
         PAY_ATTENTION: `Pay attention! That was wrong.`,
         DISMISSED: "CLASS DISMISSED",
@@ -44,9 +45,9 @@ const translations = {
         GOOD_JOB: `Exacto. "{answer}". Buen trabajo.`,
         WRONG: "¡INCORRECTO!",
         INCORRECT: `Incorrecto. La respuesta era "{answer}".`,
-        ACCEPTED: "¡ACEPTADO!",
+        ACCEPTED: "¡BIEN!",
         WELL_SPOTTED: "Bien visto. Correcto.",
-        OBJECTION: "¡PROTESTO!",
+        OBJECTION: "¡MAL!",
         STUDENT_WAS_CORRECT: `¡No! {name} tenía razón.`,
         PAY_ATTENTION: `¡Presta atención! Eso era incorrecto.`,
         DISMISSED: "CLASE TERMINADA",
@@ -469,6 +470,10 @@ class GameEngine {
             await this.showDialogue("PROFESSOR", `${concept.topic}: ${concept.q}`, true); // Auto-advance
             const isRight = Math.random() > 0.4;
             const answerText = isRight ? concept.correct : concept.wrong;
+            
+            // Give student points if they are right
+            if (isRight) student.score += 10;
+
             this.state = 'DIALOGUE_STUDENT';
             await this.showDialogue(student.name.toUpperCase(), answerText);
             this.state = 'INPUT';
@@ -485,7 +490,6 @@ class GameEngine {
                 this.shout(this.getLine('OBJECTION'));
                 this.shakeScreen();
                 if (isRight) {
-                    student.score += 10;
                     await this.showDialogue("PROFESSOR", this.getLine('STUDENT_WAS_CORRECT', { name: student.name }));
                 } else {
                     await this.showDialogue("PROFESSOR", this.getLine('PAY_ATTENTION'));
