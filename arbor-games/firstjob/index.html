@@ -274,6 +274,7 @@
             position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
             font-size: 0.7rem; letter-spacing: 0.2rem; color: #475569; font-weight: bold;
             text-shadow: 0 1px 0 rgba(255,255,255,0.1);
+            text-transform: uppercase;
         }
     </style>
 </head>
@@ -281,21 +282,21 @@
 
     <!-- UI: Start Screen -->
     <div id="start-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-900 text-cyan-400 p-6">
-        <h1 class="text-4xl md:text-6xl font-bold mb-4 font-mono tracking-tighter border-b-4 border-cyan-500 pb-2">CORP_SIM.EXE</h1>
+        <h1 class="text-4xl md:text-6xl font-bold mb-4 font-mono tracking-tighter border-b-4 border-cyan-500 pb-2">FIRST JOB</h1>
         <p class="text-sm md:text-base mb-8 text-center max-w-md font-mono opacity-80 leading-relaxed">
-            SIMULADOR DE EMPLEO PROCEDURAL.<br><br>
-            - SOBREVIVE a la entrevista (6 Preguntas).<br>
-            - EXPLORA oficinas generadas.<br>
-            - RESUELVE tickets escribiendo la solución.<br>
-            - EVITA el Burnout (El café es tu amigo).
+            SIMULADOR DE EMPLEO CONTEXTUAL.<br><br>
+            - SUPERVIVE a la entrevista con tus conocimientos.<br>
+            - GANA DINERO ($) resolviendo tickets.<br>
+            - RESPUESTAS basadas en tu lección actual.<br>
+            - COMPRA TÉ para reducir el estrés.
         </p>
         <button id="btn-start" class="px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-bold font-mono text-xl tracking-widest shadow-[0_0_20px_rgba(8,145,178,0.5)] transition-all uppercase active:scale-95">
-            BOOT SYSTEM
+            INICIAR TURNO
         </button>
     </div>
 
     <div class="console-shell">
-        <div class="brand-stripe">ARBOR SYSTEMS INC.</div>
+        <div class="brand-stripe">ARBOR ARCADE SERIES</div>
 
         <!-- D-PAD AREA -->
         <div class="controls-area" style="justify-content: center;">
@@ -313,6 +314,9 @@
 
         <!-- SCREEN AREA -->
         <div class="screen-container">
+            <!-- PAUSE BUTTON -->
+            <button id="btn-pause" class="absolute top-4 right-4 z-40 text-cyan-800 hover:text-cyan-400 font-mono text-2xl font-bold transition-colors">II</button>
+
             <div class="crt-overlay"></div>
             
             <!-- CANVAS -->
@@ -321,7 +325,7 @@
             <!-- TASK INPUT OVERLAY (Inside CRT area for style) -->
             <div id="task-input-layer">
                 <div class="terminal-window">
-                    <div class="term-header">TICKET_RESOLVER_v1.0</div>
+                    <div id="term-header" class="term-header">TICKET_RESOLVER_v1.0</div>
                     <div class="term-body">
                         <div id="task-prompt-text">ERROR: PRINTER JAMMED</div>
                         <input type="text" id="task-answer-input" placeholder="TYPE SOLUTION..." autocomplete="off">

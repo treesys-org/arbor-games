@@ -3,8 +3,8 @@
 /**
  * FIRST JOB: CORP SIM (REMASTERED)
  * A Procedural Office Simulator.
- * Features: Job Interview (6 Questions), Stress System, Neural UI, NPCs, Coffee Mechanics.
- * Update: Text-based Tasks.
+ * Features: Job Interview, Stress System, Money Economy, Tea Mechanics.
+ * Strict Arbor Content Integration: Questions must come from the lesson.
  */
 
 // --- 0. CONFIG & AUDIO ---
@@ -50,10 +50,9 @@ class AudioSynth {
         this.play(150, 'sawtooth', 0.2); 
         setTimeout(()=>this.play(100, 'sawtooth', 0.2), 100); 
     }
-    sfxDrink() { // Coffee sound
-        this.play(300, 'sine', 0.1);
-        setTimeout(()=>this.play(400, 'sine', 0.2), 100);
-        setTimeout(()=>this.play(600, 'sine', 0.1), 200);
+    sfxTea() { // Tea/Sip sound (Higher pitch, soothing)
+        this.play(600, 'sine', 0.3, 0.05);
+        setTimeout(()=>this.play(500, 'sine', 0.5, 0.05), 300);
     }
     sfxBurnout() {
         this.play(100, 'sawtooth', 1.0, 0.5);
@@ -74,7 +73,7 @@ const Palette = {
     stress_low: '#22c55e',
     stress_med: '#facc15',
     stress_high: '#ef4444',
-    coffee: '#78350f',
+    tea: '#84cc16', // Green for Tea
     plant: '#16a34a',
     machine: '#94a3b8'
 };
@@ -175,11 +174,11 @@ class SpriteGen {
         // 7: (Reserved for NPC layer, not map tile)
         ctx.fillStyle = Palette.floor; ctx.fillRect(112,0,16,16);
 
-        // 8: Coffee Machine
+        // 8: TEA STATION (Was Coffee)
         ctx.fillStyle = Palette.floor; ctx.fillRect(128,0,16,16);
-        ctx.fillStyle = '#111'; ctx.fillRect(130, 2, 12, 12);
-        ctx.fillStyle = '#555'; ctx.fillRect(132, 8, 8, 4);
-        ctx.fillStyle = '#0f0'; ctx.fillRect(138, 4, 2, 2); // Power light
+        ctx.fillStyle = '#111'; ctx.fillRect(130, 2, 12, 12); // Body
+        ctx.fillStyle = Palette.tea; ctx.fillRect(132, 6, 8, 6); // Tea tank
+        ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.5; ctx.fillRect(133, 7, 2, 4); ctx.globalAlpha = 1;
 
         // 9: Plant
         ctx.fillStyle = Palette.floor; ctx.fillRect(144, 0, 16, 16);
@@ -306,7 +305,7 @@ class Building {
         npcs.push({x: 10, y: 3, role: 'Receptionist', phrase: "Bienvenido a Arbor Corp.", color: '#ef4444'});
 
         map[2][this.w-3] = 3; // Stairs UP
-        map[2][2] = 8; // Coffee
+        map[2][2] = 8; // TEA STATION
         map[this.h-3][2] = 9; // Plant
         map[this.h-3][this.w-3] = 9; // Plant
 
@@ -333,7 +332,7 @@ class Building {
         for(let y=2; y<this.h-2; y++) {
             for(let x=2; x<this.w-2; x++) {
                 if(map[y][x] === 0 && Math.random() < 0.05) {
-                    const props = [8, 9, 10, 11]; // Coffee, Plant, Printer, Water
+                    const props = [8, 9, 10, 11]; // Tea, Plant, Printer, Water
                     map[y][x] = props[Math.floor(Math.random()*props.length)];
                 }
             }
@@ -384,6 +383,7 @@ class Game {
 
         this.input = new Input();
         this.audio = new AudioSynth();
+        this.paused = false;
         
         this.sprites = {
             hero: SpriteGen.hero,
@@ -405,34 +405,37 @@ class Game {
         this.camera = { x:0, y:0 };
         
         this.data = { company: "Arbor Corp", depts: ["Sales", "HR", "Dev"] };
-        // Default 6 Questions
+        // Updated Default Questions with keywords
         this.interviewQuestions = [
-            { q: "Why do you want this job?", opts: ["Money", "Growth"], correct: 1 },
-            { q: "Define 'Hard Work'.", opts: ["Hours", "Results"], correct: 1 },
-            { q: "Team player?", opts: ["Yes", "Solo"], correct: 0 },
-            { q: "Under pressure?", opts: ["Panic", "Focus"], correct: 1 },
-            { q: "Weakness?", opts: ["None", "Honesty"], correct: 1 },
-            { q: "Salary?", opts: ["High", "Fair"], correct: 1 }
+            { q: "Define 'Hard Work'.", keywords: ["effort", "hours", "results", "esfuerzo", "resultados", "trabajo"] },
+            { q: "Team player?", keywords: ["yes", "team", "si", "equipo", "collaborate"] },
+            { q: "Work under pressure?", keywords: ["focus", "calm", "foco", "calma", "yes"] }
         ];
         this.interviewRound = 0;
         this.interviewScore = 0;
         
         this.activeTask = null;
         this.score = 0;
+        this.money = 0; // NEW: Currency
+        this.tasksSolved = 0; // NEW: Progression Tracker
+        
         this.stress = 0; // 0 to 100
         this.maxStress = 100;
         this.msg = { text: "", timer: 0 };
-        this.phrases = ["¡Sinergia!", "ASAP", "Ping me", "Circle back", "Bandwidth?", "Touch base", "Pivotar", "¿Café?"];
+        this.phrases = ["¡Sinergia!", "ASAP", "Ping me", "Circle back", "Bandwidth?", "Touch base", "Pivotar", "¿Té?"];
 
         // DOM Elements for Typing
         this.els = {
             taskOverlay: document.getElementById('task-input-layer'),
+            taskHeader: document.getElementById('term-header'),
             taskPrompt: document.getElementById('task-prompt-text'),
             taskInput: document.getElementById('task-answer-input'),
-            taskSubmit: document.getElementById('btn-submit-task')
+            taskSubmit: document.getElementById('btn-submit-task'),
+            pauseBtn: document.getElementById('btn-pause')
         };
         
-        this.els.taskSubmit.addEventListener('click', () => this.resolveTypingTask());
+        this.els.taskSubmit.addEventListener('click', () => this.resolveInputSubmission());
+        this.els.pauseBtn.addEventListener('click', () => this.togglePause());
 
         this.state = 'INIT'; 
         this.frame = 0;
@@ -457,13 +460,16 @@ class Game {
         // AI Generation for World AND Interview
         if(window.Arbor && window.Arbor.ai) {
              try {
+                // STRICT PROMPT: Must use Context
                 const prompt = `
-                Context: "${contextText.substring(0,400)}".
+                Context: "${contextText.substring(0,800)}".
+                The user is applying for a job related to this context.
                 Generate a JSON object with:
-                1. "company": A fictional company name related to context.
+                1. "company": A fictional company name.
                 2. "depts": Array of 3 department names.
-                3. "interview": Array of 6 objects. Each: {"q": "Question?", "opts": ["Short A", "Short B"], "correct": 0 or 1}.
-                JSON format only. No markdown.
+                3. "interview": Array of 4 questions related to the Context. Each: {"q": "Question?", "keywords": ["keyword1", "keyword2"]}.
+                DO NOT ask generic questions. Use the text provided.
+                JSON format only.
                 `;
                 const res = await window.Arbor.ai.chat([{role:'user',content:prompt}]);
                 const clean = res.text.replace(/```json/g,'').replace(/```/g,'');
@@ -471,16 +477,18 @@ class Game {
                 
                 this.data.company = json.company;
                 this.data.depts = json.depts;
-                if (json.interview && json.interview.length >= 6) {
+                if (json.interview && json.interview.length >= 3) {
                     this.interviewQuestions = json.interview;
                 }
 
              } catch(e) { console.error("AI Error", e); }
         }
 
-        this.state = 'INTERVIEW';
         this.interviewRound = 0;
-        this.menu = { sel: 0 };
+        this.interviewScore = 0;
+        
+        // Start interview immediately
+        this.startInterviewRound();
         
         requestAnimationFrame(this.loop);
     }
@@ -491,6 +499,90 @@ class Game {
             this.humanCache[key] = SpriteGen.human(shirt, hair);
         }
         return this.humanCache[key];
+    }
+
+    startInterviewRound() {
+        this.state = 'INTERVIEW_INPUT';
+        const q = this.interviewQuestions[this.interviewRound];
+        
+        this.els.taskOverlay.style.display = 'flex';
+        this.els.taskHeader.innerText = `INTERVIEW (${this.interviewRound+1}/${this.interviewQuestions.length})`;
+        this.els.taskPrompt.innerText = `RECRUITER: "${q.q}"`;
+        this.els.taskInput.placeholder = "ANSWER...";
+        this.els.taskInput.value = '';
+        this.els.taskInput.focus();
+    }
+
+    togglePause() {
+        this.paused = !this.paused;
+    }
+
+    resolveInputSubmission() {
+        const val = this.els.taskInput.value.trim().toLowerCase();
+        
+        if (this.state === 'INTERVIEW_INPUT') {
+            this.resolveInterview(val);
+        } else if (this.state === 'TYPING_TASK') {
+            this.resolveGameTask(val);
+        }
+    }
+
+    resolveInterview(val) {
+        this.els.taskOverlay.style.display = 'none';
+        const q = this.interviewQuestions[this.interviewRound];
+        
+        // Simple keyword match
+        const hit = q.keywords.some(k => val.includes(k.toLowerCase()));
+        
+        if (hit || val.length > 3) { // Lenient fallback: if they typed something substantial
+            this.interviewScore++;
+            this.audio.sfxSuccess();
+        } else {
+            this.audio.sfxError();
+        }
+
+        this.interviewRound++;
+        if (this.interviewRound >= this.interviewQuestions.length) {
+            this.showRecruiterVerdict();
+        } else {
+            // Slight delay before next question for visual pacing
+            this.state = 'INTERVIEW_WAIT';
+            setTimeout(() => this.startInterviewRound(), 800);
+        }
+    }
+
+    showRecruiterVerdict() {
+        this.state = 'INTERVIEW_RESULT';
+        const passed = this.interviewScore >= Math.floor(this.interviewQuestions.length * 0.6);
+        
+        this.els.taskOverlay.style.display = 'flex';
+        this.els.taskHeader.innerText = "DECISION";
+        this.els.taskInput.style.display = 'none';
+        this.els.taskSubmit.textContent = "CONTINUE";
+        
+        if (passed) {
+            const signingBonus = 100;
+            this.money += signingBonus;
+            this.els.taskPrompt.innerText = `RECRUITER: "YOU ARE HIRED."\n(Signing Bonus: $${signingBonus})`;
+            this.els.taskSubmit.onclick = () => {
+                this.resetInputUI();
+                this.startGameWorld();
+            };
+        } else {
+            this.els.taskPrompt.innerText = `RECRUITER: "GET OUT."\n(Score: ${this.interviewScore})`;
+            this.els.taskSubmit.onclick = () => {
+                this.resetInputUI();
+                this.state = 'GAMEOVER';
+                this.msg.text = "REJECTED";
+            };
+        }
+    }
+
+    resetInputUI() {
+        this.els.taskOverlay.style.display = 'none';
+        this.els.taskInput.style.display = 'block';
+        this.els.taskSubmit.textContent = "EXECUTE";
+        this.els.taskSubmit.onclick = () => this.resolveInputSubmission(); // Restore binding
     }
 
     startGameWorld() {
@@ -510,7 +602,7 @@ class Game {
     }
 
     spawnTask() {
-        if(this.state !== 'PLAY' || this.activeTask) return;
+        if(this.state !== 'PLAY' || this.activeTask || this.paused) return;
         
         // Randomly pick a floor > 0
         const floorIdx = Math.floor(Math.random() * this.data.depts.length) + 1;
@@ -530,7 +622,11 @@ class Game {
 
     loop(now) {
         this.frame++;
-        this.update(now);
+        
+        if (!this.paused) {
+             this.update(now);
+        }
+        
         this.draw();
         requestAnimationFrame(this.loop);
     }
@@ -573,46 +669,19 @@ class Game {
             }
         }
 
-        if (this.state === 'INTERVIEW') {
-            const q = this.interviewQuestions[this.interviewRound];
-            
-            if(this.input.consume('UP')) { this.menu.sel = 0; this.audio.sfxMove(); }
-            if(this.input.consume('DOWN')) { this.menu.sel = 1; this.audio.sfxMove(); }
-            if(this.input.consume('A')) {
-                // Check Answer
-                if (this.menu.sel === q.correct) {
-                    this.interviewScore++;
-                    this.audio.sfxSuccess();
-                } else {
-                    this.audio.sfxError();
-                }
-
-                // Advance
-                this.interviewRound++;
-                if (this.interviewRound >= this.interviewQuestions.length) {
-                    // Result
-                    if (this.interviewScore >= 4) {
-                        this.startGameWorld();
-                    } else {
-                        this.audio.sfxBurnout();
-                        this.state = 'GAMEOVER';
-                        this.msg.text = "NO CONTRATADO (Score: " + this.interviewScore + "/6)";
-                    }
-                }
-            }
-        }
-        else if(this.state === 'GAMEOVER') {
+        if(this.state === 'GAMEOVER') {
              if(this.input.consume('A')) {
                  window.location.reload();
              }
         }
         else if(this.state === 'PLAY') {
             // Passive Stress
-            this.stress += 0.03;
+            // BALANCED: Slower accumulation (0.03 -> 0.015)
+            this.stress += 0.015;
 
             // Task Stress
             if (this.activeTask) {
-                this.stress += 0.05; // Extra stress while phone ringing
+                this.stress += 0.03; // Extra stress while phone ringing
             }
 
             // Burnout Check
@@ -642,19 +711,20 @@ class Game {
                 this.checkInteract();
             }
         }
-        // TYPING STATE - Input handled via DOM overlay, not keyboard listener here
         
         // Camera Follow (Follow visual position not grid)
-        const targetX = (this.player.vx) - (CONFIG.W / 2);
-        const targetY = (this.player.vy) - (CONFIG.H / 2);
-        this.camera.x += (targetX - this.camera.x) * 0.1;
-        this.camera.y += (targetY - this.camera.y) * 0.1;
-        
-        // Clamp Camera
-        if (this.state === 'PLAY' && this.building.floors[this.player.z]) {
-            const floor = this.building.floors[this.player.z];
-            this.camera.x = Math.max(0, Math.min(this.camera.x, (floor.map[0].length * CONFIG.TILE) - CONFIG.W));
-            this.camera.y = Math.max(0, Math.min(this.camera.y, (floor.map.length * CONFIG.TILE) - CONFIG.H));
+        if (this.state === 'PLAY') {
+            const targetX = (this.player.vx) - (CONFIG.W / 2);
+            const targetY = (this.player.vy) - (CONFIG.H / 2);
+            this.camera.x += (targetX - this.camera.x) * 0.1;
+            this.camera.y += (targetY - this.camera.y) * 0.1;
+            
+            // Clamp Camera
+            if (this.building.floors[this.player.z]) {
+                const floor = this.building.floors[this.player.z];
+                this.camera.x = Math.max(0, Math.min(this.camera.x, (floor.map[0].length * CONFIG.TILE) - CONFIG.W));
+                this.camera.y = Math.max(0, Math.min(this.camera.y, (floor.map.length * CONFIG.TILE) - CONFIG.H));
+            }
         }
     }
 
@@ -663,9 +733,9 @@ class Game {
         const nx = this.player.x + dx;
         const ny = this.player.y + dy;
 
-        // Collision: 0=floor, 1=wall, 2=desk, 3=up, 4=down, 5/6=phone, 8=coffee
+        // Collision: 0=floor, 1=wall, 2=desk, 3=up, 4=down, 5/6=phone, 8=tea
         const t = f.map[ny][nx];
-        // 0=floor, 1=wall, 2=desk, 3=up, 4=down, 5/6=phone, 8=coffee, 9=plant, 10=printer, 11=water
+        // 0=floor, 1=wall, 2=desk, 3=up, 4=down, 5/6=phone, 8=tea, 9=plant, 10=printer, 11=water
         if (t === 1 || t === 2 || t >= 9) { // Collide with furniture/props
             this.audio.sfxBump();
             return;
@@ -717,26 +787,36 @@ class Game {
             }
         }
 
-        // Interaction (Coffee 8, Water 11)
+        // Interaction (Tea 8, Water 11)
         const dirs = [{x:0,y:0}, {x:0,y:1}, {x:0,y:-1}, {x:1,y:0}, {x:-1,y:0}];
         for(let d of dirs) {
             const tx = this.player.x + d.x;
             const ty = this.player.y + d.y;
             if (f.map[ty]) {
                 const t = f.map[ty][tx];
-                if (t === 8 || t === 11) {
-                    this.drinkCoffee();
+                if (t === 8) {
+                    this.drinkTea();
                     return;
+                }
+                if (t === 11) {
+                     this.showMessage("Dispensador de agua. Gratis, pero inútil.");
+                     return;
                 }
             }
         }
     }
 
-    drinkCoffee() {
-        // BALANCING: Reduced relief from 25 to 15 to make game harder
-        this.stress = Math.max(0, this.stress - 15);
-        this.showMessage("Pausa: -15% Estrés. Refrescante.");
-        this.audio.sfxDrink();
+    drinkTea() {
+        if (this.money >= 50) {
+            this.money -= 50;
+            // STRONG RELIEF
+            this.stress = Math.max(0, this.stress - 40); 
+            this.showMessage("Té de Hierbas: -$50 | Estrés Calmado.");
+            this.audio.sfxTea();
+        } else {
+            this.showMessage("¡No tienes $50! Trabaja más.");
+            this.audio.sfxError();
+        }
     }
 
     async startMinigame() {
@@ -745,12 +825,12 @@ class Game {
         
         let q = { text: "El sistema está lento.", answer: "reiniciar" };
         
-        // AI Generate Task
+        // AI Generate Task from Arbor Context
         if(window.Arbor && window.Arbor.ai) {
-            const p = `Context: ${this.contextText.substring(0,300)}. 
-            Generate a workplace IT problem and a one-word solution.
+            const p = `Context: ${this.contextText.substring(0,600)}. 
+            Task: Generate a technical support ticket based on the text.
             Language: Spanish.
-            JSON: {"text":"Description of problem", "answer":"keyword"}`;
+            JSON Format: {"text":"Problem description (max 6 words)", "answer":"OneWordSolution"}`;
             try {
                 const res = await window.Arbor.ai.chat([{role:'user',content:p}]);
                 q = JSON.parse(res.text.replace(/```json/g,'').replace(/```/g,''));
@@ -762,23 +842,31 @@ class Game {
         
         // Show DOM Overlay
         this.els.taskOverlay.style.display = 'flex';
+        this.els.taskHeader.innerText = "TICKET_RESOLVER_v1.0";
         this.els.taskPrompt.innerText = `> ${q.text}`;
         this.els.taskInput.value = '';
+        this.els.taskInput.placeholder = "TYPE SOLUTION...";
         this.els.taskInput.focus();
     }
 
-    resolveTypingTask() {
-        const val = this.els.taskInput.value.trim().toLowerCase();
+    async resolveGameTask(val) {
         const correct = this.currentTaskData.answer.toLowerCase();
         
         this.els.taskOverlay.style.display = 'none';
 
         if(val.includes(correct) || correct.includes(val)) {
-            this.score += 100;
-            // BALANCING: Reduced relief from 20 to 15
-            this.stress = Math.max(0, this.stress - 15); 
-            this.showMessage("¡SOLUCIONADO! -15% Estrés");
+            const reward = 100;
+            this.score += reward;
+            this.money += reward;
+            this.stress = Math.max(0, this.stress - 10); 
+            this.showMessage(`¡SOLUCIONADO! +$${reward}`);
             this.audio.sfxSuccess();
+            
+            // Progression Logic
+            this.tasksSolved++;
+            if (this.tasksSolved % 3 === 0) {
+                 await this.advanceCurriculum();
+            }
         } else {
             this.stress += 15;
             this.showMessage(`Error... Solución: ${correct}`);
@@ -790,6 +878,22 @@ class Game {
         f.map[this.activeTask.y][this.activeTask.x] = 5; // Stop ringing
         this.activeTask = null;
         this.state = 'PLAY';
+    }
+    
+    // NEW: Simulate advancing through the Arbor course
+    async advanceCurriculum() {
+        if (window.Arbor && window.Arbor.content && window.Arbor.content.getNext) {
+             this.showMessage("DESCARGANDO NUEVO MÓDULO...");
+             try {
+                 const nextChunk = await window.Arbor.content.getNext();
+                 if (nextChunk && nextChunk.text) {
+                     this.contextText = nextChunk.text;
+                     setTimeout(() => this.showMessage("¡CONOCIMIENTO ACTUALIZADO!"), 2000);
+                 }
+             } catch(e) {
+                 console.log("No more content");
+             }
+        }
     }
 
     showMessage(txt) {
@@ -807,7 +911,7 @@ class Game {
             return;
         }
 
-        if(this.state === 'INTERVIEW') {
+        if(this.state === 'INTERVIEW_INPUT' || this.state === 'INTERVIEW_WAIT' || this.state === 'INTERVIEW_RESULT') {
             this.drawInterview();
             return;
         }
@@ -886,6 +990,16 @@ class Game {
         if (this.state !== 'TYPING_TASK') {
             this.drawUI();
         }
+        
+        if (this.paused) {
+            this.ctx.fillStyle = 'rgba(0,0,0,0.7)';
+            this.ctx.fillRect(0,0, CONFIG.W, CONFIG.H);
+            this.ctx.fillStyle = '#fff';
+            this.ctx.font = '24px "Chakra Petch"';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText("PAUSED", CONFIG.W/2, CONFIG.H/2);
+            this.ctx.textAlign = 'left';
+        }
     }
 
     drawUI() {
@@ -894,7 +1008,10 @@ class Game {
         this.ctx.fillRect(0,0,CONFIG.W, 20);
         this.ctx.fillStyle = Palette.text;
         this.ctx.font = '10px "Chakra Petch", monospace';
-        this.ctx.fillText(`PTS: ${this.score}`, 10, 14);
+        
+        // Display Money
+        this.ctx.fillStyle = '#84cc16'; // Green for money
+        this.ctx.fillText(`$${this.money}`, 10, 14);
         
         // STRESS BAR
         this.ctx.fillStyle = '#334155';
@@ -952,33 +1069,7 @@ class Game {
         this.ctx.font = '12px "Chakra Petch", monospace';
         this.ctx.textAlign = 'center';
         
-        // Header & Counter
-        this.ctx.fillText(`ENTREVISTA (${this.interviewRound+1}/6)`, CONFIG.W/2, 30);
-        this.ctx.fillStyle = '#94a3b8';
-        this.ctx.font = '10px monospace';
-        
-        // Get Question
-        const q = this.interviewQuestions[this.interviewRound];
-
-        // Word Wrap Question
-        const words = q.q.split(' ');
-        let line = "", y=125;
-        words.forEach(w => {
-            if(this.ctx.measureText(line+w).width > 240) {
-                this.ctx.fillText(line, CONFIG.W/2, y); line=""; y+=12;
-            }
-            line+=w+" ";
-        });
-        this.ctx.fillText(line, CONFIG.W/2, y);
-
-        // Options
-        y += 25;
-        q.opts.forEach((o, i) => {
-            this.ctx.fillStyle = (i === this.menu.sel) ? '#22d3ee' : '#475569';
-            this.ctx.fillText((i === this.menu.sel ? "> " : "") + o.toUpperCase(), CONFIG.W/2, y + (i*16));
-        });
-
-        this.ctx.textAlign = 'left';
+        // Note: Questions now rendered via DOM overlay, so just background here
     }
 
     drawLoading() {
