@@ -41,7 +41,7 @@
             padding: 8px; 
             text-align: center; 
             font-weight: 800; 
-            font-size: 0.85rem; 
+            font-size: clamp(0.7rem, 2vw, 1.5rem); 
             line-height: 1.1;
             display: flex;
             align-items: center;
@@ -118,7 +118,8 @@
 
         <!-- Grid -->
         <main class="flex-1 perspective-container flex items-center justify-center">
-            <div id="card-grid" class="grid grid-cols-3 md:grid-cols-4 gap-3 md:gap-4 w-full max-w-4xl mx-auto h-full max-h-[85vh] content-center">
+            <!-- Increased max-width for 4K support -->
+            <div id="card-grid" class="grid grid-cols-3 md:grid-cols-4 gap-3 md:gap-6 w-full max-w-[95vw] mx-auto h-full max-h-[85vh] content-center">
                 <!-- Cards Injected Here -->
             </div>
         </main>

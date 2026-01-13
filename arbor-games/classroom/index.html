@@ -25,21 +25,27 @@
 
         /* DIALOGUE SYSTEM - Make clickable for mobile */
         .dialogue-box {
-            position: absolute; bottom: 5%; width: 90%; max-width: 800px; min-height: 160px;
+            position: absolute; bottom: 5%; 
+            width: 90%; 
+            max-width: 1400px; /* Increased from 800px for large screens */
+            min-height: 160px;
             background: #fff; border: 4px solid #000; box-shadow: 8px 8px 0 #000;
-            padding: 25px; z-index: 20; display: none; color: #000; font-size: 1.8rem; line-height: 1.2;
-            cursor: pointer; /* Indication that it is clickable */
+            padding: 25px; z-index: 20; display: none; color: #000; 
+            font-size: clamp(1.5rem, 4vw, 3rem); /* Fluid font size for 4K */
+            line-height: 1.2;
+            cursor: pointer;
         }
         .speaker-name {
             position: absolute; top: -25px; left: 0; background: #000; color: #fff;
-            padding: 5px 15px; font-family: 'Press Start 2P', cursive; font-size: 0.8rem; border: 4px solid #000;
+            padding: 5px 15px; font-family: 'Press Start 2P', cursive; font-size: 0.5em; border: 4px solid #000;
         }
         
         /* NEXT BUTTON */
         .next-btn {
             position: absolute; bottom: 20px; right: 20px;
             background: #4ade80; color: #000;
-            border: 4px solid #000; font-family: 'Press Start 2P'; font-size: 1rem;
+            border: 4px solid #000; font-family: 'Press Start 2P'; 
+            font-size: clamp(0.8rem, 2vw, 1.5rem);
             padding: 15px 20px; cursor: pointer; box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
             z-index: 50; display: none; text-transform: uppercase;
         }
@@ -57,24 +63,28 @@
         
         /* TEXT INPUT OVERLAY (Player Answer) */
         #text-overlay {
-            position: absolute; bottom: 240px; width: 90%; max-width: 600px; z-index: 30;
+            position: absolute; bottom: 240px; width: 90%; max-width: 900px; z-index: 30;
             display: none; flex-direction: row; align-items: center; justify-content: center; gap: 10px;
         }
 
         #player-input {
             flex: 1; background: #000; color: #4ade80; border: 4px solid #fff;
-            font-family: 'VT323', monospace; font-size: 2rem; padding: 0.5rem 1rem;
+            font-family: 'VT323', monospace; 
+            font-size: clamp(2rem, 5vw, 4rem); 
+            padding: 0.5rem 1rem;
             text-transform: uppercase; outline: none; box-shadow: 6px 6px 0 rgba(0,0,0,0.5);
         }
         #btn-submit {
             background: #4ade80; color: #000; border: 4px solid #fff;
-            font-family: 'Press Start 2P'; font-size: 1rem; padding: 1rem;
+            font-family: 'Press Start 2P'; font-size: clamp(1rem, 2vw, 2rem); padding: 1rem;
             cursor: pointer; box-shadow: 6px 6px 0 rgba(0,0,0,0.5);
         }
         #btn-submit:active { transform: translate(4px, 4px); box-shadow: none; }
         
         .judge-btn {
-            font-family: 'Press Start 2P'; font-size: 1rem; padding: 1.5rem 2rem;
+            font-family: 'Press Start 2P'; 
+            font-size: clamp(1rem, 2vw, 2rem); 
+            padding: 1.5rem 2rem;
             border: 4px solid #fff; box-shadow: 6px 6px 0 rgba(0,0,0,0.5);
             cursor: pointer; transition: transform 0.1s; text-transform: uppercase;
         }
@@ -86,7 +96,8 @@
         /* DRAMATIC TEXT */
         .shout-bubble {
             position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%) rotate(-5deg);
-            background: #fff; color: #b91c1c; font-family: 'Press Start 2P'; font-size: 3rem;
+            background: #fff; color: #b91c1c; font-family: 'Press Start 2P'; 
+            font-size: clamp(3rem, 8vw, 6rem);
             padding: 2rem; border: 8px solid #000; box-shadow: 15px 15px 0 rgba(0,0,0,0.5);
             z-index: 40; display: none; text-transform: uppercase;
         }

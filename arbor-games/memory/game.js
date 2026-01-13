@@ -1,3 +1,4 @@
+
 /**
  * GAME.JS
  * Core Logic for Memory Garden: Overgrowth
@@ -157,7 +158,8 @@ Do NOT wrap in markdown code blocks.
         this.els.grid.innerHTML = '';
         cards.forEach((card, index) => {
             const el = document.createElement('div');
-            el.className = 'card-container w-full h-20 md:h-32';
+            // Responsive heights: h-24 mobile, h-40 desktop, h-56 XL, h-72 for 4K
+            el.className = 'card-container w-full h-24 md:h-40 xl:h-56 2xl:h-72';
             el.innerHTML = `
                 <div class="card" data-index="${index}" data-id="${card.id}">
                     <div class="card-face face-front">
