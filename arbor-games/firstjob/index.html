@@ -1,3 +1,5 @@
+
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -72,6 +74,9 @@
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            
+            /* UPDATED: Added margin to clear top bezel text */
+            margin-top: 30px; 
         }
 
         /* CRT Effects */
@@ -180,6 +185,11 @@
             text-transform: uppercase;
         }
 
+        #task-answer-input:disabled {
+            color: #555;
+            border-bottom-color: #555;
+        }
+
         #btn-submit-task {
             margin-top: 20px;
             width: 100%;
@@ -195,6 +205,12 @@
         #btn-submit-task:hover {
             background: #22d3ee;
             color: #000;
+        }
+        #btn-submit-task:disabled {
+            background: #0f172a;
+            color: #555;
+            border-color: #555;
+            cursor: wait;
         }
 
         /* --- CONTROLS --- */
@@ -314,16 +330,8 @@
     <!-- UI: Start Screen -->
     <div id="start-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-900 text-cyan-400 p-6">
         <h1 class="text-4xl md:text-6xl font-bold mb-4 font-mono tracking-tighter border-b-4 border-cyan-500 pb-2">FIRST JOB</h1>
-        <p class="text-sm md:text-base mb-8 text-center max-w-md font-mono opacity-80 leading-relaxed">
-            SIMULADOR DE EMPLEO CONTEXTUAL.<br><br>
-            - SUPERVIVE a la entrevista con tus conocimientos.<br>
-            - GANA DINERO ($) resolviendo tickets.<br>
-            - RESPUESTAS basadas en tu lección actual.<br>
-            - COMPRA TÉ para reducir el estrés.
-        </p>
-        <button id="btn-start" class="px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-bold font-mono text-xl tracking-widest shadow-[0_0_20px_rgba(8,145,178,0.5)] transition-all uppercase active:scale-95">
-            INICIAR TURNO
-        </button>
+        <p id="start-desc" class="text-sm md:text-base mb-8 text-center max-w-md font-mono opacity-80 leading-relaxed"></p>
+        <button id="btn-start" class="px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-bold font-mono text-xl tracking-widest shadow-[0_0_20px_rgba(8,145,178,0.5)] transition-all uppercase active:scale-95"></button>
     </div>
 
     <div class="console-shell">
@@ -338,9 +346,7 @@
                 <div id="btn-right" class="d-btn"></div>
                 <div id="btn-down" class="d-btn"></div>
             </div>
-            <div class="text-xs text-slate-500 mt-4 text-center hidden md:block font-mono">
-                WASD / ARROWS<br>TO MOVE
-            </div>
+            <div id="controls-dpad-desc" class="text-xs text-slate-500 mt-4 text-center hidden md:block font-mono"></div>
         </div>
 
         <!-- SCREEN AREA -->
@@ -371,16 +377,14 @@
             <div class="action-group">
                 <div class="flex flex-col items-center">
                     <div id="btn-b" class="action-btn">B</div>
-                    <div class="text-[10px] text-slate-500 font-bold mt-2">BACK</div>
+                    <div id="action-b-label" class="text-[10px] text-slate-500 font-bold mt-2">BACK</div>
                 </div>
                 <div class="flex flex-col items-center">
                     <div id="btn-a" class="action-btn">A</div>
-                    <div class="text-[10px] text-slate-500 font-bold mt-2">ACT</div>
+                    <div id="action-a-label" class="text-[10px] text-slate-500 font-bold mt-2">ACT</div>
                 </div>
             </div>
-            <div class="text-xs text-slate-500 mt-4 text-center hidden md:block font-mono">
-                Z / ENTER = A<br>X / ESC = B
-            </div>
+            <div id="controls-action-desc" class="text-xs text-slate-500 mt-4 text-center hidden md:block font-mono"></div>
         </div>
     </div>
 

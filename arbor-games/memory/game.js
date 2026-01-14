@@ -1,12 +1,52 @@
-
 /**
  * GAME.JS
  * Core Logic for Memory Garden: Overgrowth
  */
 import { FX } from './fx.js';
 
+// --- I18N & INITIALIZATION ---
+const translations = {
+    EN: {
+        SCORE: "Score",
+        INITIALIZE: "INITIALIZE",
+        LOADING_SAGE: "Consulting the Sage...",
+        VICTORY_TITLE: "GARDEN BLOOMED",
+        FINAL_SCORE: "Final Score: ",
+        HIGH_SCORE: "High Score: ",
+        REPLAY: "REPLAY",
+        ROTATE_TITLE: "Portrait Mode<br>Recommended",
+        ROTATE_DESC: "Let the garden grow tall.",
+        LOADING_CRYSTALS: "Synthesizing Crystals...",
+        SYNTHESIS_FAILED: "Synthesis failed. No data returned from AI.",
+        INIT_FAILED: "Initialization Failed. Check Arbor Context.",
+        NO_BRIDGE: "Arbor Bridge is not properly initialized.",
+        NO_LESSON: "No lesson content available from the curriculum."
+    },
+    ES: {
+        SCORE: "Puntos",
+        INITIALIZE: "INICIALIZAR",
+        LOADING_SAGE: "Consultando al Sabio...",
+        VICTORY_TITLE: "JARDÍN FLORECIDO",
+        FINAL_SCORE: "Puntuación Final: ",
+        HIGH_SCORE: "Puntuación Máxima: ",
+        REPLAY: "REPETIR",
+        ROTATE_TITLE: "Modo Vertical<br>Recomendado",
+        ROTATE_DESC: "Deja que el jardín crezca alto.",
+        LOADING_CRYSTALS: "Sintetizando cristales...",
+        SYNTHESIS_FAILED: "La síntesis falló. La IA no devolvió datos.",
+        INIT_FAILED: "Falló la inicialización. Revisa el contexto de Arbor.",
+        NO_BRIDGE: "El puente de Arbor no está inicializado.",
+        NO_LESSON: "No hay contenido de lección disponible."
+    }
+};
+
+const lang = (window.Arbor && window.Arbor.user && translations[window.Arbor.user.lang.toUpperCase()]) ? window.Arbor.user.lang.toUpperCase() : 'EN';
+const i18n = (key) => translations[lang][key] || translations['EN'][key];
+
+
 class MemoryGame {
     constructor() {
+        this.lang = lang;
         this.state = {
             cards: [],
             flipped: [],
@@ -20,18 +60,36 @@ class MemoryGame {
 
         this.els = {
             grid: document.getElementById('card-grid'),
+            scoreLabel: document.getElementById('score-label'),
             score: document.getElementById('score-display'),
             comboBar: document.getElementById('combo-bar'),
             startScreen: document.getElementById('start-screen'),
             victoryScreen: document.getElementById('victory-screen'),
+            victoryTitle: document.getElementById('victory-title'),
+            finalScoreLabel: document.getElementById('final-score-label'),
             finalScore: document.getElementById('final-score'),
+            highScoreLabel: document.getElementById('high-score-label'),
             highScore: document.getElementById('high-score'),
             btnStart: document.getElementById('btn-start'),
+            btnReplay: document.getElementById('btn-replay'),
             loadState: document.getElementById('loading-state'),
             loadText: document.getElementById('loading-text'),
-            topic: document.getElementById('lesson-topic')
+            topic: document.getElementById('lesson-topic'),
+            rotateTitle: document.getElementById('rotate-title'),
+            rotateDesc: document.getElementById('rotate-desc')
         };
         
+        // Set initial UI text
+        this.els.scoreLabel.textContent = i18n('SCORE');
+        this.els.btnStart.querySelector('span').textContent = i18n('INITIALIZE');
+        this.els.loadText.textContent = i18n('LOADING_SAGE');
+        this.els.victoryTitle.textContent = i18n('VICTORY_TITLE');
+        this.els.finalScoreLabel.textContent = i18n('FINAL_SCORE');
+        this.els.highScoreLabel.textContent = i18n('HIGH_SCORE');
+        this.els.btnReplay.textContent = i18n('REPLAY');
+        this.els.rotateTitle.innerHTML = i18n('ROTATE_TITLE'); // innerHTML for <br>
+        this.els.rotateDesc.textContent = i18n('ROTATE_DESC');
+
         // Load high score from Arbor Storage
         if (window.Arbor && window.Arbor.storage) {
             this.state.highScore = window.Arbor.storage.load('high_score') || 0;
@@ -44,6 +102,7 @@ class MemoryGame {
 
     initListeners() {
         this.els.btnStart.addEventListener('click', () => this.startSequence());
+        this.els.btnReplay.addEventListener('click', () => window.location.reload());
     }
 
     // --- GAME LOOP for UI Updates ---
@@ -82,36 +141,38 @@ class MemoryGame {
                 this.buildGrid(pairs);
                 this.startGame();
             } else {
-                throw new Error("Synthesis failed. No data returned from AI.");
+                throw new Error(i18n('SYNTHESIS_FAILED'));
             }
         } catch (e) {
-            this.handleError(e.message || "Initialization Failed. Check Arbor Context.");
+            this.handleError(e.message || i18n('INIT_FAILED'));
         }
     }
 
     async generatePairs() {
-        this.els.loadText.innerText = "Synthesizing Crystals...";
+        this.els.loadText.innerText = i18n('LOADING_CRYSTALS');
 
         if (!window.Arbor || !window.Arbor.ai || !window.Arbor.content) {
-            throw new Error("Arbor Bridge is not properly initialized.");
+            throw new Error(i18n('NO_BRIDGE'));
         }
 
         // 1. Get raw lesson content from the player
         const lesson = await window.Arbor.content.getNext();
         if (!lesson) {
-            throw new Error("No lesson content available from the curriculum.");
+            throw new Error(i18n('NO_LESSON'));
         }
 
         // 2. Build the game-specific prompt
+        const langName = this.lang === 'ES' ? 'Spanish' : 'English';
         const prompt = `
 Context: "${lesson.text.substring(0, 1000)}".
-Task: Create content for a "Memory" style card matching game.
+Task: Create content for a "Memory" style card matching game in ${langName}.
 Goal: Generate 6 pairs of concepts where the player must match a "Term" with its "Definition".
 Rules:
 1. The pairs must be logically connected and unique within this set.
-2. "Term" should be a noun or short phrase (1-3 words).
-3. "Definition" must be a concise explanation (max 6 words).
-4. Avoid ambiguous pairs where a definition could fit multiple terms.
+2. "Term" should be a noun or short phrase (1-3 words) in ${langName}.
+3. "Definition" must be a concise explanation (max 6 words) in ${langName}.
+4. ALL output text MUST be in ${langName}.
+5. Avoid ambiguous pairs where a definition could fit multiple terms.
 Output: ONLY a valid JSON array: [{"t": "Term", "d": "Definition"}, ...]
 Do NOT use markdown.
         `;

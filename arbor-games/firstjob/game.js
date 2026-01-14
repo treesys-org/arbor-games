@@ -1,4 +1,5 @@
 
+
 /**
  * FIRST JOB: CORP SIM (REMASTERED v4.0)
  * Entry point for logic and state management.
@@ -7,12 +8,136 @@
 import { CONFIG, Palette, AudioSynth, Input, SpriteGen, setTheme } from './core.js';
 import { Building } from './world.js';
 
+// --- I18N & INITIALIZATION ---
+const translations = {
+    EN: {
+        // Start Screen
+        START_SHIFT: "START SHIFT",
+        START_DESC: "CONTEXTUAL JOB SIMULATOR.<br><br>- SURVIVE the interview with your knowledge.<br>- EARN MONEY ($) by solving tickets.<br>- ANSWERS based on your current lesson.<br>- BUY TEA to reduce stress.",
+        // Controls
+        MOVE_DESC: "WASD / ARROWS<br>TO MOVE",
+        ACTION_DESC: "Z / ENTER = A<br>X / ESC = B",
+        BACK_LABEL: "BACK",
+        ACT_LABEL: "ACT",
+        // In-Game
+        WELCOME_MSG: "WELCOME TO {company}",
+        BUSY_MSG: `"{role}": "I'm busy."`,
+        FUNDS_MSG: "Insufficient funds.",
+        CONSUMED_MSG: "{item} consumed!",
+        INCOMING_CALL: "INCOMING!",
+        PRESS_A: "PRESS [A]",
+        FROM: "FROM: {caller}",
+        OK: "OK",
+        STRESS: "STRESS",
+        SHOP_TITLE: "CAFETERIA - MENU",
+        EFFECT: "EFFECT: {stress} Stress",
+        SPEED_BONUS: " + SPEED",
+        BUY: "BUY",
+        EXIT: "EXIT",
+        // Interview & Tasks
+        INTERVIEW: "INTERVIEW",
+        RETRY: " (TRY #{num})",
+        CALL_ENDED: "CALL ENDED",
+        APPROVED: "APPROVED ({score}/{total})\nWelcome to {company}.\n(+$200 Bonus)",
+        REJECTED: "REJECTED ({score}/{total})\nNot a match.\nTry again?",
+        CONTINUE: "CONTINUE",
+        EVALUATING: "EVALUATING...",
+        SUBMITTING: "SUBMITTING...",
+        EXECUTE: "EXECUTE",
+        TICKET: "TICKET",
+        ATTEMPTS: "ATTEMPTS: {num}",
+        SOLUTION_PLACEHOLDER: "SOLUTION...",
+        TICKET_FAILED: `TICKET FAILED. "{reply}"`,
+        WRONG_ATTEMPTS: "WRONG! ATTEMPTS: {num}",
+        // Game Over
+        GAME_OVER: "GAME OVER",
+        BURNOUT: "BURNOUT - GAME OVER",
+        RESTART: "PRESS [A] TO RESTART",
+        // Loading
+        CONNECTING: "CONNECTING CALL...",
+        LOADING: "LOADING...",
+        // Floors
+        LOBBY: "LOBBY",
+        CAFE: "CAFE",
+        FLOOR: "F-{num}"
+    },
+    ES: {
+        // Start Screen
+        START_SHIFT: "INICIAR TURNO",
+        START_DESC: "SIMULADOR DE EMPLEO CONTEXTUAL.<br><br>- SUPERVIVE a la entrevista con tus conocimientos.<br>- GANA DINERO ($) resolviendo tickets.<br>- RESPUESTAS basadas en tu lección actual.<br>- COMPRA TÉ para reducir el estrés.",
+        // Controls
+        MOVE_DESC: "WASD / FLECHAS<br>PARA MOVER",
+        ACTION_DESC: "Z / ENTER = A<br>X / ESC = B",
+        BACK_LABEL: "VOLVER",
+        ACT_LABEL: "ACCIÓN",
+        // In-Game
+        WELCOME_MSG: "BIENVENIDO A {company}",
+        BUSY_MSG: `"{role}": "Estoy ocupado."`,
+        FUNDS_MSG: "Fondos insuficientes.",
+        CONSUMED_MSG: "¡{item} consumido!",
+        INCOMING_CALL: "¡LLAMADA!",
+        PRESS_A: "PULSA [A]",
+        FROM: "DE: {caller}",
+        OK: "OK",
+        STRESS: "ESTRÉS",
+        SHOP_TITLE: "CAFETERÍA - MENÚ",
+        EFFECT: "EFECTO: {stress} Estrés",
+        SPEED_BONUS: " + VELOCIDAD",
+        BUY: "COMPRAR",
+        EXIT: "SALIR",
+        // Interview & Tasks
+        INTERVIEW: "ENTREVISTA",
+        RETRY: " (INTENTO #{num})",
+        CALL_ENDED: "LLAMADA FINALIZADA",
+        APPROVED: "APROBADO ({score}/{total})\nBienvenido a {company}.\n(Bono +$200)",
+        REJECTED: "RECHAZADO ({score}/{total})\nNo eres compatible.\n¿Intentar de nuevo?",
+        CONTINUE: "CONTINUAR",
+        EVALUATING: "EVALUANDO...",
+        SUBMITTING: "ENVIANDO...",
+        EXECUTE: "EJECUTAR",
+        TICKET: "TICKET",
+        ATTEMPTS: "INTENTOS: {num}",
+        SOLUTION_PLACEHOLDER: "SOLUCIÓN...",
+        TICKET_FAILED: `TICKET FALLIDO. "{reply}"`,
+        WRONG_ATTEMPTS: "¡ERROR! INTENTOS: {num}",
+        // Game Over
+        GAME_OVER: "GAME OVER",
+        BURNOUT: "BURNOUT - GAME OVER",
+        RESTART: "PULSA [A] PARA REINICIAR",
+        // Loading
+        CONNECTING: "CONECTANDO LLAMADA...",
+        LOADING: "CARGANDO...",
+        // Floors
+        LOBBY: "LOBBY",
+        CAFE: "CAFETERÍA",
+        FLOOR: "P-{num}"
+    }
+};
+
+const lang = (window.Arbor && window.Arbor.user && translations[window.Arbor.user.lang.toUpperCase()]) ? window.Arbor.user.lang.toUpperCase() : 'EN';
+const i18n = (key, replacements = {}) => {
+    let line = translations[lang][key] || translations['EN'][key] || `[${key}]`;
+    for (const [k, v] of Object.entries(replacements)) {
+        line = line.replace(`{${k}}`, v);
+    }
+    return line;
+};
+
+// Immediately set static HTML text
+document.getElementById('btn-start').textContent = i18n('START_SHIFT');
+document.getElementById('start-desc').innerHTML = i18n('START_DESC');
+document.getElementById('controls-dpad-desc').innerHTML = i18n('MOVE_DESC');
+document.getElementById('controls-action-desc').innerHTML = i18n('ACTION_DESC');
+document.getElementById('action-b-label').textContent = i18n('BACK_LABEL');
+document.getElementById('action-a-label').textContent = i18n('ACT_LABEL');
+
 class Game {
     constructor() {
         this.canvas = document.getElementById('game-canvas');
         this.ctx = this.canvas.getContext('2d');
         this.ctx.imageSmoothingEnabled = false;
 
+        this.lang = lang;
         this.input = new Input();
         this.audio = new AudioSynth();
         this.building = new Building();
@@ -63,17 +188,17 @@ class Game {
         ];
         this.prologueIndex = 0;
 
-        // Interview Data (Default 6 Questions)
+        // Interview Data: Questions are now static, evaluation is by AI
         this.interviewQuestions = [
-            { q: "Who are you?", keywords: ["hard", "worker", "passionate", "motivated", "learner"] },
-            { q: "Why this company?", keywords: ["growth", "values", "best", "future", "money"] },
-            { q: "What is your weakness?", keywords: ["perfectionist", "care", "details", "workaholic"] },
-            { q: "Define success.", keywords: ["results", "impact", "profit", "completion", "winning"] },
-            { q: "Handle pressure?", keywords: ["calm", "focus", "organize", "breathe", "prioritize"] },
-            { q: "Salary expectations?", keywords: ["fair", "market", "negotiable", "high", "growth"] }
+            { q: this.lang === 'ES' ? "¿Quién eres?" : "Who are you?" },
+            { q: this.lang === 'ES' ? "¿Por qué esta empresa?" : "Why this company?" },
+            { q: this.lang === 'ES' ? "¿Cuál es tu mayor debilidad?" : "What is your weakness?" },
+            { q: this.lang === 'ES' ? "Define el éxito." : "Define success." },
+            { q: this.lang === 'ES' ? "¿Cómo manejas la presión?" : "How do you handle pressure?" },
+            { q: this.lang === 'ES' ? "¿Expectativas salariales?" : "Salary expectations?" }
         ];
         this.interviewRound = 0;
-        this.interviewScore = 0;
+        this.interviewScore = 0; // Will count approved answers
 
         // UI Refs
         this.els = {
@@ -87,6 +212,10 @@ class Game {
         
         this.bindEvents();
         this.init();
+    }
+    
+    getLine(key, replacements = {}) {
+        return i18n(key, replacements);
     }
 
     bindEvents() {
@@ -104,74 +233,73 @@ class Game {
         this.state = 'PROLOGUE'; // Start with Prologue
         requestAnimationFrame(this.loop);
         
-        // Load Save
-        if (window.Arbor && window.Arbor.storage) {
-            try {
-                const saved = await window.Arbor.storage.load('career_save_v1');
-                if (saved) {
-                    this.money = saved.money || 0;
-                    this.tasksSolved = saved.tasksSolved || 0;
-                    this.memories = saved.memories || {};
-                }
-            } catch(e) { console.warn("Save load error:", e); }
+        // Load Save Data from Arbor
+        try {
+            const saved = await window.Arbor.storage.load('career_save_v1');
+            if (saved) {
+                this.money = saved.money || 0;
+                this.tasksSolved = saved.tasksSolved || 0;
+                this.memories = saved.memories || {};
+            }
+        } catch(e) { console.warn("Save load error:", e); }
+
+        // Load Lesson Content from Arbor
+        try { 
+            const c = await window.Arbor.content.getNext(); 
+            this.contextText = c.text;
+        } catch(e) {
+            this.contextText = "Corporate Office Work"; // Minimal fallback
+            console.error("Failed to load lesson context", e);
         }
 
-        // Load Content
-        let contextText = "Corporate Office Work";
-        if(window.Arbor && window.Arbor.content) {
-            try { 
-                const c = await window.Arbor.content.getNext(); 
-                if(c && c.text) contextText = c.text;
-            } catch(e) {}
-        }
-        this.contextText = contextText;
+        // Setup company profile via AI
+        try {
+            const langName = this.lang === 'ES' ? 'Spanish' : 'English';
+            const prompt = `
+            [ROLE]
+            You are a game content generator for a simulation game.
 
-        // AI Setup
-        if(window.Arbor && window.Arbor.ai) {
-             try {
-                // Request 6 questions + THEME
-                // Updated to allow 'lab' instead of 'startup'
-                const prompt = `
-                Context: "${contextText.substring(0,800)}".
-                Determine the industry of this profession and choose a 'theme' from: ['corporate', 'lab', 'studio', 'industrial'].
-                Generate JSON:
-                { 
-                  "company": "Company Name", 
-                  "theme": "corporate",
-                  "depts": ["Dept1", "Dept2", "Dept3"], 
-                  "interview": [{"q":"Question (Max 6 words)?", "keywords":["key1", "key2"]}] 
-                }
-                Make sure 'interview' has exactly 6 items.
-                `;
-                const json = await window.Arbor.ai.askJSON(prompt);
-                
-                // Apply Data
-                this.data.company = json.company;
-                this.data.depts = json.depts;
-                
-                // Apply Theme
-                if (json.theme) {
-                    console.log("Applying Skin:", json.theme);
-                    setTheme(json.theme);
-                    // Regenerate Sprites with new colors
-                    this.sprites.tiles = SpriteGen.tiles; 
-                    this.sprites.hero = SpriteGen.hero; // Re-gen hero to match potential theme nuance
-                }
+            [CONTEXT]
+            The game's theme is based on this text: "${this.contextText.substring(0, 500)}"
 
-                if (json.interview && json.interview.length >= 2) this.interviewQuestions = json.interview;
-             } catch(e) { console.error("AI Error", e); }
+            [TASK]
+            Create a corporate profile based on the context. ALL text output must be in ${langName}.
+            1. Industry Theme: Choose strictly one from ['corporate', 'lab', 'studio', 'industrial'].
+            2. Company Name: A creative name relevant to the context.
+            3. Departments: 3 distinct department names.
+
+            [FORMAT]
+            Return ONLY valid JSON.
+            { 
+              "company": "Company Name", 
+              "theme": "corporate",
+              "depts": ["Dept1", "Dept2", "Dept3"]
+            }
+            `;
+            const json = await window.Arbor.ai.askJSON(prompt);
+            
+            this.data.company = json.company;
+            this.data.depts = json.depts;
+            
+            if (json.theme) {
+                console.log("Applying Skin:", json.theme);
+                setTheme(json.theme);
+                this.sprites.tiles = SpriteGen.tiles; 
+                this.sprites.hero = SpriteGen.hero;
+            }
+        } catch(e) { 
+            console.error("AI Error during company generation", e);
+            // The game will proceed with default data if this fails
         }
     }
 
     saveGame() {
-        if (window.Arbor && window.Arbor.storage) {
-            window.Arbor.storage.save('career_save_v1', {
-                money: this.money,
-                tasksSolved: this.tasksSolved,
-                memories: this.memories,
-                timestamp: Date.now()
-            });
-        }
+        window.Arbor.storage.save('career_save_v1', {
+            money: this.money,
+            tasksSolved: this.tasksSolved,
+            memories: this.memories,
+            timestamp: Date.now()
+        });
     }
 
     getHumanSprite(shirt, hair, isVendor) {
@@ -208,9 +336,9 @@ class Game {
         this.els.taskOverlay.style.display = 'flex';
         this.els.taskOverlay.classList.add('interview-mode');
         
-        let headerText = `INTERVIEW [${this.interviewRound+1}/${this.interviewQuestions.length}]`;
+        let headerText = `${this.getLine('INTERVIEW')} [${this.interviewRound+1}/${this.interviewQuestions.length}]`;
         if (this.interviewRound === 0 && this.memories.rejections > 0) {
-             headerText += ` (TRY #${this.memories.rejections + 1})`;
+             headerText += this.getLine('RETRY', {num: this.memories.rejections + 1});
         }
         
         const q = this.interviewQuestions[this.interviewRound];
@@ -220,30 +348,59 @@ class Game {
         this.els.taskInput.style.display = 'block';
         this.els.taskSubmit.style.display = 'block';
         this.els.taskInput.value = '';
+        this.els.taskInput.disabled = false;
         this.els.taskInput.focus();
+        this.els.taskSubmit.disabled = false;
+        this.els.taskSubmit.textContent = this.getLine('EXECUTE');
     }
 
-    resolveInputSubmission() {
-        const val = this.els.taskInput.value.trim().toLowerCase();
+    async resolveInputSubmission() {
+        const val = this.els.taskInput.value.trim();
         if (val.length === 0) return;
 
-        if (this.state === 'INTERVIEW_INPUT') this.resolveInterview(val);
-        else if (this.state === 'TYPING_TASK') this.resolveGameTask(val);
+        if (this.state === 'INTERVIEW_INPUT') await this.resolveInterview(val);
+        else if (this.state === 'TYPING_TASK') await this.resolveGameTask(val);
     }
 
-    resolveInterview(val) {
-        const q = this.interviewQuestions[this.interviewRound];
-        const hit = q.keywords.some(k => val.includes(k.toLowerCase()));
-        const effort = val.length > 1; // Basic validation
-        const success = hit || effort; // Simplified logic, keywords are bonus in this version
+    async resolveInterview(val) {
+        // UI Feedback: Thinking
+        this.els.taskSubmit.disabled = true;
+        this.els.taskSubmit.textContent = this.getLine('EVALUATING');
+        this.els.taskInput.disabled = true;
 
-        if (success) { 
-            this.interviewScore++; 
-            this.audio.sfxSuccess();
-            this.lastInterviewFeedback = `Recruiter: "Good answer."`;
-        } else { 
-            this.audio.sfxError(); 
-            this.lastInterviewFeedback = `Recruiter: "I disagree."`;
+        const q = this.interviewQuestions[this.interviewRound];
+        const langName = this.lang === 'ES' ? 'Spanish' : 'English';
+        
+        try {
+            const p = `
+            [ROLEPLAY]
+            You are a demanding HR recruiter for the company "${this.data.company}".
+            Your interview is based on this general topic: "${this.contextText.substring(0, 300)}".
+            You just asked the candidate: "${q.q}"
+            The candidate replied: "${val}"
+
+            [TASK]
+            1. Evaluate if this is a good, mediocre, or bad answer for a job interview.
+            2. Write a short, in-character response in ${langName} (Max 10 words).
+            
+            [FORMAT]
+            JSON ONLY: { "approved": boolean, "reply": "Your short comment..." }
+            `;
+
+            const res = await window.Arbor.ai.askJSON(p);
+            
+            if (res.approved) { 
+                this.interviewScore++; 
+                this.audio.sfxSuccess();
+            } else { 
+                this.audio.sfxError(); 
+            }
+            this.lastInterviewFeedback = `Recruiter: "${res.reply}"`;
+
+        } catch(e) {
+            console.error("AI Interview Error:", e);
+            this.lastInterviewFeedback = `Recruiter: "${this.lang === 'ES' ? 'No entiendo tu respuesta.' : 'I do not understand your answer.'}"`;
+            this.audio.sfxError();
         }
 
         this.state = 'INTERVIEW_FEEDBACK';
@@ -263,20 +420,21 @@ class Game {
     showRecruiterVerdict() {
         this.state = 'INTERVIEW_RESULT';
         this.els.taskOverlay.classList.remove('interview-mode');
-        // Need to pass at least 50%
-        const passed = this.interviewScore >= Math.floor(this.interviewQuestions.length * 0.5);
+        
+        // Pass if at least 3 answers are approved by the AI
+        const passed = this.interviewScore >= 3;
         
         this.els.taskOverlay.style.display = 'flex';
-        this.els.taskHeader.innerText = "CALL ENDED";
+        this.els.taskHeader.innerText = this.getLine('CALL_ENDED');
         this.els.taskInput.style.display = 'none';
         this.els.taskPrompt.style.display = 'block';
-        this.els.taskSubmit.textContent = "CONTINUE";
+        this.els.taskSubmit.textContent = this.getLine('CONTINUE');
         
         if (passed) {
             this.money += 200;
             this.memories.hired = true;
             this.saveGame();
-            this.els.taskPrompt.innerText = `APPROVED (${this.interviewScore}/${this.interviewQuestions.length})\nWelcome to ${this.data.company}.\n(+$200 Bonus)`;
+            this.els.taskPrompt.innerText = this.getLine('APPROVED', {score: this.interviewScore, total: this.interviewQuestions.length, company: this.data.company});
             this.els.taskSubmit.onclick = () => {
                 this.resetInputUI();
                 this.startGameWorld();
@@ -284,7 +442,7 @@ class Game {
         } else {
             this.memories.rejections = (this.memories.rejections || 0) + 1;
             this.saveGame();
-            this.els.taskPrompt.innerText = `REJECTED (${this.interviewScore}/${this.interviewQuestions.length})\nNot a match.\nTry again?`;
+            this.els.taskPrompt.innerText = this.getLine('REJECTED', {score: this.interviewScore, total: this.interviewQuestions.length});
             this.els.taskSubmit.onclick = () => window.location.reload();
         }
     }
@@ -294,7 +452,8 @@ class Game {
         this.els.taskInput.style.display = 'block';
         this.els.taskPrompt.style.display = 'block';
         this.els.taskSubmit.style.display = 'block';
-        this.els.taskSubmit.textContent = "EXECUTE";
+        this.els.taskSubmit.textContent = this.getLine('EXECUTE');
+        this.els.taskSubmit.disabled = false;
         this.els.taskSubmit.onclick = () => this.resolveInputSubmission(); 
     }
 
@@ -304,7 +463,7 @@ class Game {
         this.state = 'PLAY';
         this.stress = 0;
         this.score = 0;
-        this.showMessage(`BIENVENIDO A ${this.data.company.toUpperCase()}`);
+        this.showMessage(this.getLine('WELCOME_MSG', {company: this.data.company.toUpperCase()}));
         
         // Initial Camera snap
         this.player.vx = this.player.x * CONFIG.TILE;
@@ -334,9 +493,12 @@ class Game {
             this.phone.caller = npc.role;
             this.phone.floorName = floor.name;
             
-            const taskTypes = ["Ayuda impresora", "Bug crítico", "Cliente enojado", "Falta café"];
+            const taskTypes = this.lang === 'ES' 
+                ? ["Ayuda impresora", "Bug crítico", "Cliente enojado", "Falta café"]
+                : ["Printer help", "Critical bug", "Angry client", "Coffee is out"];
             const taskName = taskTypes[Math.floor(Math.random()*taskTypes.length)];
-            this.phone.msg = `Ve a ${floor.name} (Piso ${floorIdx}). ${taskName}.`;
+            const floorLabel = this.lang === 'ES' ? `Piso ${floorIdx}` : `Floor ${floorIdx}`;
+            this.phone.msg = `${this.lang === 'ES' ? 'Ve a' : 'Go to'} ${floor.name} (${floorLabel}). ${taskName}.`;
             
             npc.task = { type: 'TICKET' };
             this.audio.sfxPhone();
@@ -508,7 +670,7 @@ class Game {
         
         if (this.stress >= this.maxStress) {
             this.state = 'GAMEOVER';
-            this.msg.text = "BURNOUT - GAME OVER";
+            this.msg.text = this.getLine('BURNOUT');
             this.audio.sfxBurnout();
             clearInterval(this.taskInterval);
         }
@@ -538,7 +700,7 @@ class Game {
         } else if (npc === this.phone.targetNPC) {
             this.startMinigame(npc);
         } else {
-            this.showMessage(`${npc.role}: "Estoy ocupado."`);
+            this.showMessage(this.getLine('BUSY_MSG', {role: npc.role}));
         }
     }
 
@@ -567,11 +729,11 @@ class Game {
             if(item.speed) this.speedBoost = 600; 
             this.saveGame();
             this.audio.sfxEat();
-            this.showMessage(`¡${item.n} consumido!`);
+            this.showMessage(this.getLine('CONSUMED_MSG', {item: item.n}));
             this.shop.active = false;
         } else {
             this.audio.sfxError();
-            this.showMessage("Fondos insuficientes.");
+            this.showMessage(this.getLine('FUNDS_MSG'));
         }
     }
 
@@ -579,42 +741,90 @@ class Game {
         this.state = 'LOADING_TASK';
         this.currentNPC = npc;
         this.audio.sfxSelect();
-        this.taskAttempts = 5; // Reset attempts to 5
+        this.taskAttempts = 5; 
         
         this.els.taskOverlay.classList.remove('interview-mode');
         this.phone.targetNPC = null;
         this.phone.active = false;
         this.phone.ringing = false;
 
-        let q = { text: "El sistema falló.", answer: "reboot" };
+        let q = { role: npc.role, complaint: "System is not working." };
+        const langName = this.lang === 'ES' ? 'Spanish' : 'English';
         
-        if(window.Arbor && window.Arbor.ai) {
-            const p = `Context: ${this.contextText.substring(0,600)}. 
-            Task: Generate a user complaint.
-            Lang: Spanish.
-            JSON: {"text":"'Problem description' (max 6 words)", "answer":"OneWordSolution"}`;
-            try { q = await window.Arbor.ai.askJSON(p); } catch(e) {}
+        try {
+            const p = `
+            [CONTEXT]
+            The work environment is related to: "${this.contextText.substring(0, 400)}"
+
+            [TASK]
+            Generate a single work ticket/complaint for a(n) ${npc.role}.
+            1. Language: ${langName}.
+            2. Complaint: A brief problem description (max 8 words).
+
+            [FORMAT]
+            JSON ONLY: {"role": "${npc.role}", "complaint": "Problem description"}
+            `;
+            q = await window.Arbor.ai.askJSON(p);
+        } catch(e) {
+            console.error("AI Task Generation Error:", e);
         }
 
-        this.currentTaskData = q;
+        this.currentTaskData = q; 
         this.state = 'TYPING_TASK';
         
         this.els.taskOverlay.style.display = 'flex';
-        this.els.taskHeader.innerText = `TICKET: ${npc.role.toUpperCase()} | ATTEMPTS: ${this.taskAttempts}`;
+        this.els.taskHeader.innerText = `${this.getLine('TICKET')}: ${npc.role.toUpperCase()} | ${this.getLine('ATTEMPTS', {num: this.taskAttempts})}`;
         this.els.taskPrompt.style.display = 'block';
-        this.els.taskPrompt.innerText = `"${q.text}"`;
+        this.els.taskPrompt.innerText = `"${q.complaint}"`;
         this.els.taskInput.style.display = 'block';
         this.els.taskSubmit.style.display = 'block';
         this.els.taskInput.value = '';
-        this.els.taskInput.placeholder = "SOLUTION...";
+        this.els.taskInput.placeholder = this.getLine('SOLUTION_PLACEHOLDER');
+        this.els.taskInput.disabled = false;
         this.els.taskInput.focus();
     }
 
     async resolveGameTask(val) {
-        const correct = this.currentTaskData.answer.toLowerCase();
-        const hit = val.includes(correct) || correct.includes(val);
+        // UI Feedback: Thinking
+        this.els.taskSubmit.disabled = true;
+        this.els.taskSubmit.textContent = this.getLine('SUBMITTING');
+        this.els.taskInput.disabled = true;
+        const langName = this.lang === 'ES' ? 'Spanish' : 'English';
 
-        if (hit) {
+        try {
+            const p = `
+            [ROLEPLAY]
+            You are a ${this.currentTaskData.role} in a company.
+            Your current problem is: "${this.currentTaskData.complaint}".
+            The IT Support (player) says: "${val}".
+
+            [TASK]
+            1. Evaluate if this is a valid/helpful solution to your problem.
+            2. Write a short, natural response in ${langName} (Max 8 words).
+            3. If it's wrong, give a subtle hint in the response.
+
+            [FORMAT]
+            JSON ONLY: { "solved": boolean, "reply": "Your response here" }
+            `;
+
+            const res = await window.Arbor.ai.askJSON(p);
+            this.finalizeTask(res.solved, res.reply);
+
+        } catch(e) {
+            console.error("AI Task Error:", e);
+            const errorReply = this.lang === 'ES' ? "Error de sistema. Intenta de nuevo." : "System Error. Try again.";
+            this.finalizeTask(false, errorReply);
+        }
+    }
+
+    finalizeTask(isSolved, replyText) {
+        // Restore UI
+        this.els.taskSubmit.disabled = false;
+        this.els.taskSubmit.textContent = this.getLine('EXECUTE');
+        this.els.taskInput.disabled = false;
+        this.els.taskInput.focus();
+
+        if (isSolved) {
             // SUCCESS
             this.els.taskOverlay.style.display = 'none';
             const reward = 150;
@@ -622,7 +832,7 @@ class Game {
             this.money += reward;
             this.stress = Math.max(0, this.stress - 20); 
             this.saveGame();
-            this.showMessage(`¡GRACIAS! +$${reward}`);
+            this.showMessage(`"${replyText}" +$${reward}`);
             this.audio.sfxCash();
             this.currentNPC.task = null;
             this.tasksSolved++;
@@ -633,16 +843,15 @@ class Game {
             this.audio.sfxError();
             
             if (this.taskAttempts > 0) {
-                // Retry
-                this.els.taskHeader.innerText = `WRONG! ATTEMPTS: ${this.taskAttempts}`;
-                this.els.taskPrompt.innerText = `"${this.currentTaskData.text}"\n(Try Again!)`;
+                // Retry with AI Feedback
+                this.els.taskHeader.innerText = this.getLine('WRONG_ATTEMPTS', {num: this.taskAttempts});
+                this.els.taskPrompt.innerText = `"${replyText}"`;
                 this.els.taskInput.value = '';
-                this.els.taskInput.focus();
             } else {
                 // FINAL FAIL
                 this.els.taskOverlay.style.display = 'none';
                 this.stress += 25; // Big Penalty
-                this.showMessage(`¡TICKET FALLIDO! +ESTRÉS`);
+                this.showMessage(this.getLine('TICKET_FAILED', {reply: replyText}));
                 this.state = 'PLAY';
             }
         }
@@ -665,7 +874,7 @@ class Game {
         }
 
         if(this.state === 'CONNECTING_CALL' || this.state === 'LOADING' || this.state === 'LOADING_TASK') {
-            this.drawLoading(this.state === 'CONNECTING_CALL' ? "CONNECTING CALL..." : "LOADING...");
+            this.drawLoading(this.state === 'CONNECTING_CALL' ? this.getLine('CONNECTING') : this.getLine('LOADING'));
             return;
         }
 
@@ -702,7 +911,7 @@ class Game {
         this.ctx.font = '10px monospace';
         this.ctx.fillStyle = '#94a3b8';
         if (Math.floor(this.frame / 30) % 2 === 0) {
-            this.ctx.fillText("[PRESS A]", CONFIG.W/2, CONFIG.H - 40);
+            this.ctx.fillText(`[${this.getLine('PRESS_A')}]`, CONFIG.W/2, CONFIG.H - 40);
         }
         this.ctx.textAlign = 'left';
     }
@@ -772,7 +981,7 @@ class Game {
         this.ctx.fillStyle = '#fff';
         this.ctx.textAlign = 'center';
         this.ctx.font = '8px monospace';
-        this.ctx.fillText("ESTRÉS", CONFIG.W/2, 13);
+        this.ctx.fillText(this.getLine('STRESS'), CONFIG.W/2, 13);
         
         // Elevator Panel
         const panelW = 40;
@@ -793,7 +1002,7 @@ class Game {
             } else {
                 this.ctx.fillStyle = '#64748b';
             }
-            let label = i === 0 ? "LOBBY" : (i === 1 ? "CAFE" : `F-${i}`);
+            let label = i === 0 ? this.getLine('LOBBY') : (i === 1 ? this.getLine('CAFE') : this.getLine('FLOOR', {num: i}));
             this.ctx.fillText(label, panelX + (panelW/2), y + 2);
         }
         this.ctx.textAlign = 'left';
@@ -812,30 +1021,24 @@ class Game {
 
     drawPhone() {
         if (this.phone.ringing) {
-            // Enhanced visual for ringing
-            const shake = Math.sin(this.frame * 0.8) * 3;
-            // Flashing background
-            this.ctx.fillStyle = (Math.floor(this.frame/10)%2===0) ? '#ef4444' : '#facc15';
+            const floatY = Math.sin(this.frame * 0.15) * 2;
+            this.ctx.fillStyle = '#ef4444';
+            const w = 60, h = 40;
+            const px = CONFIG.W - 80, py = CONFIG.H - 60;
             
-            const w = 60; // Bigger
-            const h = 40;
-            const px = CONFIG.W - 80;
-            const py = CONFIG.H - 60;
-            
-            this.ctx.fillRect(px, py + shake, w, h);
+            this.ctx.fillRect(px, py + floatY, w, h);
             this.ctx.strokeStyle = '#fff';
             this.ctx.lineWidth = 3;
-            this.ctx.strokeRect(px, py + shake, w, h);
+            this.ctx.strokeRect(px, py + floatY, w, h);
             
-            this.ctx.fillStyle = '#000';
+            this.ctx.fillStyle = '#fff';
             this.ctx.font = '10px "Chakra Petch"';
             this.ctx.textAlign = 'center';
-            this.ctx.fillText("INCOMING!", px + w/2, py + 15 + shake);
+            this.ctx.fillText(this.getLine('INCOMING_CALL'), px + w/2, py + 15 + floatY);
             
-            // Pulsing button prompt
-            const scale = 1 + Math.sin(this.frame * 0.2) * 0.2;
+            const scale = 1 + Math.sin(this.frame * 0.1) * 0.1;
             this.ctx.font = `bold ${10 * scale}px monospace`;
-            this.ctx.fillText("PRESS [A]", px + w/2, py + 30 + shake);
+            this.ctx.fillText(this.getLine('PRESS_A'), px + w/2, py + 30 + floatY);
             
             this.ctx.textAlign = 'left';
             return;
@@ -854,7 +1057,7 @@ class Game {
             
             this.ctx.fillStyle = Palette.text;
             this.ctx.font = '10px "Chakra Petch"';
-            this.ctx.fillText(`FROM: ${this.phone.caller}`, x+15, y+25);
+            this.ctx.fillText(this.getLine('FROM', {caller: this.phone.caller}), x+15, y+25);
             
             this.ctx.fillStyle = '#fff';
             this.ctx.font = '9px monospace';
@@ -869,7 +1072,7 @@ class Game {
             this.ctx.fillText(line, x+15, ly);
             this.ctx.fillStyle = '#94a3b8';
             this.ctx.textAlign = 'center';
-            this.ctx.fillText("[A] OK", x + w/2, y + h - 5);
+            this.ctx.fillText(`[A] ${this.getLine('OK')}`, x + w/2, y + h - 5);
             this.ctx.textAlign = 'left';
         }
     }
@@ -886,7 +1089,7 @@ class Game {
         this.ctx.fillStyle = '#fff';
         this.ctx.font = '12px "Chakra Petch"';
         this.ctx.textAlign = 'center';
-        this.ctx.fillText("CAFETERÍA - MENÚ", x + w/2, y + 20);
+        this.ctx.fillText(this.getLine('SHOP_TITLE'), x + w/2, y + 20);
 
         this.ctx.font = '10px monospace';
         this.ctx.textAlign = 'left';
@@ -902,11 +1105,14 @@ class Game {
         });
         
         const selItem = this.shop.items[this.shop.selected];
+        let effectText = this.getLine('EFFECT', {stress: selItem.stress});
+        if (selItem.speed) effectText += this.getLine('SPEED_BONUS');
+        
         this.ctx.fillStyle = Palette.text;
         this.ctx.textAlign = 'center';
-        this.ctx.fillText(`EFECTO: ${selItem.stress} Estrés` + (selItem.speed ? " + VELOCIDAD" : ""), x + w/2, y + h - 30);
+        this.ctx.fillText(effectText, x + w/2, y + h - 30);
         this.ctx.fillStyle = '#94a3b8';
-        this.ctx.fillText("[A] COMPRAR   [B] SALIR", x + w/2, y + h - 10);
+        this.ctx.fillText(`[A] ${this.getLine('BUY')}   [B] ${this.getLine('EXIT')}`, x + w/2, y + h - 10);
         this.ctx.textAlign = 'left';
     }
 
@@ -961,13 +1167,13 @@ class Game {
         this.ctx.fillStyle = '#fff';
         this.ctx.textAlign = 'center';
         this.ctx.font = '20px "Chakra Petch"';
-        this.ctx.fillText("GAME OVER", CONFIG.W/2, CONFIG.H/2 - 20);
+        this.ctx.fillText(this.getLine('GAME_OVER'), CONFIG.W/2, CONFIG.H/2 - 20);
         this.ctx.font = '12px monospace';
         this.ctx.fillStyle = '#fca5a5';
         this.ctx.fillText(this.msg.text, CONFIG.W/2, CONFIG.H/2 + 10);
         if (Math.floor(this.frame/30) % 2 === 0) {
             this.ctx.fillStyle = '#fff';
-            this.ctx.fillText("PRESS [A] TO RESTART", CONFIG.W/2, CONFIG.H/2 + 40);
+            this.ctx.fillText(this.getLine('RESTART'), CONFIG.W/2, CONFIG.H/2 + 40);
         }
         this.ctx.textAlign = 'left';
     }

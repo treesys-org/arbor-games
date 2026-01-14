@@ -92,8 +92,8 @@
     <!-- ROTATION WARNING -->
     <div id="rotate-warning">
         <div class="text-6xl mb-4">📱 ⟳</div>
-        <h1 class="text-2xl font-black mb-2 uppercase">Portrait Mode<br>Recommended</h1>
-        <p class="text-sm opacity-70 font-mono">Let the garden grow tall.</p>
+        <h1 id="rotate-title" class="text-2xl font-black mb-2 uppercase">Portrait Mode<br>Recommended</h1>
+        <p id="rotate-desc" class="text-sm opacity-70 font-mono">Let the garden grow tall.</p>
     </div>
 
     <!-- PROCEDURAL BACKGROUND -->
@@ -108,7 +108,7 @@
                 <p id="lesson-topic" class="text-[0.6rem] md:text-xs text-emerald-400 font-mono uppercase tracking-widest mt-1 opacity-0 transition-opacity duration-1000 max-w-[200px] truncate">...</p>
             </div>
             <div class="text-right pointer-events-auto">
-                <div class="text-xs text-gray-400 font-bold uppercase">Score</div>
+                <div id="score-label" class="text-xs text-gray-400 font-bold uppercase">Score</div>
                 <div id="score-display" class="text-2xl md:text-4xl font-black font-mono leading-none">0</div>
                 <div class="combo-bar-container w-20 md:w-32 ml-auto">
                     <div id="combo-bar" class="combo-bar"></div>
@@ -146,10 +146,10 @@
 
     <!-- VICTORY SCREEN -->
     <div id="victory-screen" class="overlay hidden-fade p-4 text-center">
-        <h2 class="text-3xl md:text-5xl font-black text-yellow-400 mb-2 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]">GARDEN BLOOMED</h2>
-        <p class="text-xl md:text-2xl text-white mb-2">Final Score: <span id="final-score">0</span></p>
-        <p class="text-lg text-gray-400 mb-8">High Score: <span id="high-score">0</span></p>
-        <button onclick="window.location.reload()" class="px-8 py-3 border-2 border-white text-white font-bold hover:bg-white hover:text-black transition-colors">
+        <h2 id="victory-title" class="text-3xl md:text-5xl font-black text-yellow-400 mb-2 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]">GARDEN BLOOMED</h2>
+        <p class="text-xl md:text-2xl text-white mb-2"><span id="final-score-label">Final Score: </span><span id="final-score">0</span></p>
+        <p class="text-lg text-gray-400 mb-8"><span id="high-score-label">High Score: </span><span id="high-score">0</span></p>
+        <button id="btn-replay" class="px-8 py-3 border-2 border-white text-white font-bold hover:bg-white hover:text-black transition-colors">
             REPLAY
         </button>
     </div>
