@@ -1,3 +1,4 @@
+
 /**
  * GAME.JS
  * Core Logic for Memory Garden: Overgrowth
@@ -11,6 +12,7 @@ const translations = {
         INITIALIZE: "INITIALIZE",
         LOADING_SAGE: "Consulting the Sage...",
         VICTORY_TITLE: "GARDEN BLOOMED",
+        VICTORY_REVIEW: "MEMORY WATERED 💧", // SRS Specific
         FINAL_SCORE: "Final Score: ",
         HIGH_SCORE: "High Score: ",
         REPLAY: "REPLAY",
@@ -20,13 +22,15 @@ const translations = {
         SYNTHESIS_FAILED: "Synthesis failed. No data returned from AI.",
         INIT_FAILED: "Initialization Failed. Check Arbor Context.",
         NO_BRIDGE: "Arbor Bridge is not properly initialized.",
-        NO_LESSON: "No lesson content available from the curriculum."
+        NO_LESSON: "No lesson content available from the curriculum.",
+        MODE_REVIEW: "WATERING MODE" // SRS Mode
     },
     ES: {
         SCORE: "Puntos",
         INITIALIZE: "INICIALIZAR",
         LOADING_SAGE: "Consultando al Sabio...",
         VICTORY_TITLE: "JARDÍN FLORECIDO",
+        VICTORY_REVIEW: "MEMORIA REGADA 💧", // SRS Specific
         FINAL_SCORE: "Puntuación Final: ",
         HIGH_SCORE: "Puntuación Máxima: ",
         REPLAY: "REPETIR",
@@ -36,7 +40,8 @@ const translations = {
         SYNTHESIS_FAILED: "La síntesis falló. La IA no devolvió datos.",
         INIT_FAILED: "Falló la inicialización. Revisa el contexto de Arbor.",
         NO_BRIDGE: "El puente de Arbor no está inicializado.",
-        NO_LESSON: "No hay contenido de lección disponible."
+        NO_LESSON: "No hay contenido de lección disponible.",
+        MODE_REVIEW: "MODO RIEGO" // SRS Mode
     }
 };
 
@@ -55,7 +60,9 @@ class MemoryGame {
             score: 0,
             highScore: 0,
             combo: 0,
-            comboTimer: 0
+            comboTimer: 0,
+            currentLessonId: null, // Track for SRS
+            isReviewMode: false    // Track if we are watering a withered node
         };
 
         this.els = {
@@ -132,10 +139,19 @@ class MemoryGame {
 
         try {
             // 2. Generate Cards via AI
-            const { title, pairs } = await this.generatePairs();
+            const { title, pairs, lessonId, isDue } = await this.generatePairs();
             
+            // SRS State
+            this.state.currentLessonId = lessonId;
+            this.state.isReviewMode = isDue;
+
             this.els.topic.innerText = title;
             this.els.topic.classList.remove('opacity-0');
+            
+            // SRS Visual Feedback
+            if (isDue) {
+                this.els.topic.innerHTML += ` <span style="color:#60a5fa">[${i18n('MODE_REVIEW')}]</span>`;
+            }
 
             if (pairs && pairs.length > 0) {
                 this.buildGrid(pairs);
@@ -160,6 +176,16 @@ class MemoryGame {
         if (!lesson) {
             throw new Error(i18n('NO_LESSON'));
         }
+        
+        // 1.5 Check Memory Status (SRS)
+        let isDue = false;
+        if (window.Arbor.memory) {
+            const dueList = window.Arbor.memory.getDue();
+            if (dueList && dueList.includes(lesson.id)) {
+                isDue = true;
+                console.log("MemoryGarden: Node is due for review!", lesson.id);
+            }
+        }
 
         // 2. Build the game-specific prompt
         const langName = this.lang === 'ES' ? 'Spanish' : 'English';
@@ -183,7 +209,12 @@ Do NOT use markdown.
         // askJSON handles markdown stripping and JSON.parsing automatically
         const pairs = await window.Arbor.ai.askJSON(prompt);
         
-        return { title: lesson.title, pairs: pairs };
+        return { 
+            title: lesson.title, 
+            pairs: pairs, 
+            lessonId: lesson.id,
+            isDue: isDue
+        };
     }
 
     handleError(msg) {
@@ -315,6 +346,15 @@ Do NOT use markdown.
         setTimeout(() => {
             this.fx.playVictorySound();
             
+            // SRS REPORTING
+            if (window.Arbor && window.Arbor.memory) {
+                // If score is decent (e.g. > 1500), report quality 5, else 3
+                // Simple logic: If we matched all without many fails, score is high
+                const quality = this.state.score > 2000 ? 5 : 4;
+                console.log(`Reporting Memory: ${this.state.currentLessonId} -> Quality ${quality}`);
+                window.Arbor.memory.report(this.state.currentLessonId, quality);
+            }
+
             if (this.state.score > this.state.highScore) {
                 this.state.highScore = this.state.score;
                 if (window.Arbor && window.Arbor.storage) {
@@ -324,6 +364,12 @@ Do NOT use markdown.
             
             this.els.finalScore.innerText = this.state.score;
             this.els.highScore.innerText = this.state.highScore;
+            
+            // Show special title if we just watered a memory
+            if (this.state.isReviewMode) {
+                this.els.victoryTitle.textContent = i18n('VICTORY_REVIEW');
+                this.els.victoryTitle.style.color = '#60a5fa';
+            }
             
             this.els.victoryScreen.classList.remove('hidden-fade');
             

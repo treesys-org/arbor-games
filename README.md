@@ -1,4 +1,3 @@
-
 # 🎮 Arbor Games (The Arcade)
 
 **The Future of Educational Gaming: Context-Aware Engines.**
@@ -31,28 +30,69 @@ When a student plays your game, Arbor injects the **Lesson Text** (Context) + **
 3.  **Arbor** replies: *"User is 'Maria', Language is 'ES', Lesson is 'Photosynthesis...'."*
 4.  **Your Game** tells the AI: *"Generate a quiz in Spanish based on this text."*
 5.  **The AI** returns JSON. The game starts.
-6.  **The User** wins. Your game sends **XP** and **Saves Progress** back to Arbor.
+6.  **The User** wins. Your game sends **XP**, **Saves Progress**, and updates **Memory Health**.
 
 ---
 
-## 🏃 How to Run the Arcade
+## 🧠 Memory Core (SRS System)
 
-Before building, let's run the console.
+Arbor tracks the "Memory Health" of every lesson using a **Spaced Repetition System (SRS)** (based on the SM-2 algorithm).
 
-### 1. Prerequisites
-You need **Python 3** installed (to act as a local web server).
+Your game is not just for fun; it is a tool for **Knowledge Maintenance**.
 
-### 2. Start the Server
-Browsers block AI connections if you just double-click files. You **must** run a server.
+### 1. Reading State: `Arbor.memory.getDue()`
+Check if the player is about to forget the current topic.
+*   **Returns:** Array of Strings (Node IDs that are "Due").
 
-1.  Open a terminal in this folder (`arbor-games-main`).
-2.  Run this command:
-    ```bash
-    python -m http.server 8000
-    ```
-3.  Open your browser: **http://localhost:8000**
+**Use Case: "The Withered World"**
+If the lesson is due, make your game look "decayed" or "dry". Playing the game "waters" the knowledge.
 
-You will see the Arcade Menu.
+```javascript
+const currentLesson = await window.Arbor.content.getNext();
+const dueList = window.Arbor.memory.getDue();
+
+// Check if THIS specific lesson is in the "Due" list
+const isWithered = dueList.includes(currentLesson.id);
+
+if (isWithered) {
+    console.log("URGENT: This knowledge is fading!");
+    // TODO: Set game background to 'desert' or 'ruins'
+    // TODO: Show "BONUS XP" for restoring memory
+} else {
+    // TODO: Set game background to 'lush garden'
+}
+```
+
+### 2. Writing State: `Arbor.memory.report(nodeId, quality)`
+Tell Arbor how well the player remembers the topic. This updates the forgetting curve.
+
+*   `nodeId`: The ID of the lesson (get this from `Arbor.content.getNext()`).
+*   `quality`: Integer (0-5).
+
+**Quality Score Guide:**
+
+| Score | Meaning | Game Logic Equivalent |
+| :--- | :--- | :--- |
+| **0** | **Blackout** | Player failed the level completely. Game Over. |
+| **1** | **Incorrect** | Player struggled, got most answers wrong. |
+| **2** | **Hard** | Player passed but with < 50% health/score. |
+| **3** | **Pass** | Standard win. Good effort. |
+| **4** | **Good** | Solid win. Fast reaction time. |
+| **5** | **Perfect** | Flawless victory. No damage/errors. |
+
+```javascript
+// Example: Level Complete
+function onVictory(score, maxScore) {
+    const percentage = score / maxScore;
+    
+    let quality = 3;
+    if (percentage > 0.9) quality = 5;
+    else if (percentage > 0.7) quality = 4;
+    
+    // Tell Arbor to schedule the next review based on this performance
+    window.Arbor.memory.report(currentLesson.id, quality);
+}
+```
 
 ---
 
@@ -72,7 +112,7 @@ Inside it, create `index.html` and `meta.json`.
 ```
 
 ### Step 2: The Master Template (Copy & Paste)
-This template uses **ALL** the features of Arbor: Language, Identity, Raw Content, AI, XP, and **Persistence**.
+This template uses **ALL** the features of Arbor: Language, Identity, Raw Content, AI, XP, Persistence, and **Memory**.
 
 **Paste this into `index.html`:**
 
@@ -85,6 +125,7 @@ This template uses **ALL** the features of Arbor: Language, Identity, Raw Conten
         button { padding: 15px 30px; font-size: 1.2rem; cursor: pointer; background: #22c55e; border: none; color: #000; font-weight: bold; border-radius: 10px; margin-top: 20px; }
         .hidden { display: none; }
         .stat-box { border: 1px solid #333; display: inline-block; padding: 10px; border-radius: 8px; margin: 10px; }
+        .watering-mode { color: #60a5fa; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -114,13 +155,21 @@ This template uses **ALL** the features of Arbor: Language, Identity, Raw Conten
         `;
         
         let currentHighScore = 0;
+        let currentLessonId = null;
+        let isWatering = false;
 
         // --- 2. GAME LOGIC ---
         function renderGame(data, topicTitle) {
             document.getElementById('loading').classList.add('hidden');
             document.getElementById('game-ui').classList.remove('hidden');
             
-            document.getElementById('topic').innerText = "Topic: " + topicTitle;
+            const topicEl = document.getElementById('topic');
+            topicEl.innerText = "Topic: " + topicTitle;
+            
+            if (isWatering) {
+                topicEl.innerHTML += " <span class='watering-mode'>[WATERING MODE 💧]</span>";
+            }
+
             document.getElementById('question').innerText = data.q;
             document.getElementById('answer').innerText = data.a;
         }
@@ -134,8 +183,14 @@ This template uses **ALL** the features of Arbor: Language, Identity, Raw Conten
                 const newScore = currentHighScore + 50;
                 window.Arbor.storage.save('super_quiz_high_score', newScore);
                 
+                // 6. MEMORY CORE: Report success (SRS)
+                if (window.Arbor.memory) {
+                    // Quality 5 = Perfect/Easy
+                    window.Arbor.memory.report(currentLessonId, 5); 
+                }
+                
                 document.getElementById('high-score').innerText = newScore;
-                alert("XP Gained! Progress Saved.");
+                alert("XP Gained! Memory Watered!");
             } else {
                 alert("Dev Mode: XP would be sent here.");
             }
@@ -155,9 +210,17 @@ This template uses **ALL** the features of Arbor: Language, Identity, Raw Conten
                     document.getElementById('high-score').innerText = currentHighScore;
                 }
 
-                // 3. CONTENT: Get Raw Lesson Data (Title, Text)
+                // 3. CONTENT & MEMORY
                 const lesson = await window.Arbor.content.getNext();
-                // You can access lesson.text manually here if you want to bypass AI!
+                currentLessonId = lesson.id;
+                
+                // Check if this lesson needs watering
+                if (window.Arbor.memory) {
+                    const due = window.Arbor.memory.getDue();
+                    if (due.includes(currentLessonId)) {
+                        isWatering = true;
+                    }
+                }
 
                 // 4. INTELLIGENCE: Ask AI (Context is injected automatically)
                 const prompt = PROMPT_TEMPLATE.replace("{lang}", user.lang);
@@ -187,29 +250,6 @@ Paste this into `meta.json`.
   "author": "Me"
 }
 ```
-
-### Step 4: Register the Game
-Run the builder script to update the menu (`manifest.json`).
-
-```bash
-python game_builder.py
-```
-
----
-
-## 🧪 Testing your Game
-
-### Phase A: Local (Fast)
-Go to `http://localhost:8000/arbor-games/super-quiz/index.html`.
-*   **Result:** You see "Dev Mode". This confirms your HTML/JS is valid.
-
-### Phase B: Integration (The Real Deal)
-To see the AI actually read a lesson and generate content:
-1.  Download the **[Arbor UI](https://github.com/treesys-org/arbor-ui)** (The App).
-2.  Open Arbor, select a lesson (e.g., Biology).
-3.  Go to **Arcade** -> **Add Game URL**.
-4.  Paste your local link: `http://localhost:8000/arbor-games/super-quiz/index.html`.
-5.  **Play.** You will see your game greet you by name, show the lesson title, and generate a question.
 
 ---
 
