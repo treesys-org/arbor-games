@@ -254,6 +254,17 @@ Paste this into `meta.json`.
 
 ---
 
+## ⚖️ Assets & Licensing
+
+This project is designed to be **Asset-Free**. It does not use external images, sprites, or audio files that could pose copyright risks.
+
+*   **Graphics:** All visuals (sprites, planets, UI) are **Procedurally Generated** using the HTML5 Canvas API. The code that generates them is open source (GPL-3.0).
+*   **Icons:** The interface uses Standard Unicode Emojis. These are text characters rendered by the user's operating system.
+*   **Fonts:** Uses fonts from Google Fonts (Open Font License), which are free for commercial use.
+*   **Audio:** Sound effects are synthesized in real-time using the Web Audio API (`AudioContext`). No `.mp3` or `.wav` samples are included.
+
+---
+
 ## 🔌 The Arbor Bridge API (Reference)
 
 When inside Arbor, `window.Arbor` is available.
