@@ -1,4 +1,5 @@
 
+
 /**
  * SPACE.JS
  * Top-down spaceship exploration.
@@ -235,14 +236,14 @@ export class SpaceEngine {
 
         // Draw Systems
         this.systems.forEach(sys => {
-            // Sun with Glow
-            const sunGrad = ctx.createRadialGradient(sys.x, sys.y, 100, sys.x, sys.y, 1200);
-            sunGrad.addColorStop(0, 'rgba(253, 224, 71, 0.4)');
-            sunGrad.addColorStop(0.5, 'rgba(234, 179, 8, 0.1)');
+            // Sun with Glow (Reduced radius and opacity to avoid blinding)
+            const sunGrad = ctx.createRadialGradient(sys.x, sys.y, 100, sys.x, sys.y, 600);
+            sunGrad.addColorStop(0, 'rgba(253, 224, 71, 0.3)');
+            sunGrad.addColorStop(0.5, 'rgba(234, 179, 8, 0.05)');
             sunGrad.addColorStop(1, 'transparent');
             ctx.fillStyle = sunGrad;
             ctx.globalCompositeOperation = 'screen'; // Additive blending for light
-            ctx.beginPath(); ctx.arc(sys.x, sys.y, 1200, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(sys.x, sys.y, 600, 0, Math.PI*2); ctx.fill();
             ctx.globalCompositeOperation = 'source-over';
             
             // Core Sun
@@ -304,6 +305,7 @@ export class SpaceEngine {
                 if (isActive) {
                     ctx.fillStyle = '#22c55e';
                     ctx.font = 'bold 16px "Orbitron"';
+                    ctx.textAlign = 'center';
                     ctx.fillText(p.data.title.toUpperCase(), p.x, p.y - p.radius - 30);
                     
                     ctx.fillStyle = '#fff';
@@ -314,6 +316,21 @@ export class SpaceEngine {
         });
 
         this.drawShip(ctx);
+
+        // Draw Landing Prompt near ship if active
+        if (this.activePlanet) {
+            ctx.save();
+            ctx.translate(this.ship.x, this.ship.y);
+            const scale = 1 + Math.sin(Date.now() * 0.01) * 0.1;
+            ctx.scale(scale, scale);
+            ctx.fillStyle = '#22c55e';
+            ctx.font = 'bold 14px "Orbitron"';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = '#000';
+            ctx.shadowBlur = 4;
+            ctx.fillText("[SPACE] LAND", 0, -40);
+            ctx.restore();
+        }
 
         ctx.restore();
     }

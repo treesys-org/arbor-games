@@ -1,4 +1,5 @@
 
+
 /**
  * PLATFORMER.JS
  * Side-scrolling planetary exploration mode.
@@ -146,8 +147,12 @@ export class PlatformerEngine {
             w: 64, h: 64 
         };
 
+        // Initialize Player Placement logic
         this.player.x = 150; 
-        this.player.y = (startHeight * this.tileSize) - 100;
+        // Force player Y to be above the ground tiles generated at x=150 (approx x index 3)
+        // Since x < 5, height is exactly groundY (12).
+        this.player.y = (groundY * this.tileSize) - 100;
+        
         this.player.vx = 0; this.player.vy = 0; 
         this.player.health = 100;
         this.player.ammo = 0; 
@@ -158,6 +163,11 @@ export class PlatformerEngine {
         this.npcs.push({ x: endX, y: 0, w: 32, h: 64, text: "Data Secured. Launching...", type: 'elder' });
         this.tiles.push({ x: endX - 50, y: height*this.tileSize, w: 200, h: this.tileSize, type: 'surface' });
         this.npcs[this.npcs.length-1].y = height*this.tileSize - 64;
+
+        // CRITICAL FIX: Force Camera to center on player immediately
+        // This prevents the "empty screen" issue if camera starts at 0,0 and lerps slowly
+        this.camera.x = this.player.x - (this.game.width / this.zoom / 2);
+        this.camera.y = Math.min(this.player.y - (this.game.height / this.zoom / 2), 300);
     }
 
     update() {
