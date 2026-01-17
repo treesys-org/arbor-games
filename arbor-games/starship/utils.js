@@ -312,18 +312,71 @@ export const Sprites = {
         ctx.fillStyle = color;
         ctx.shadowColor = color; ctx.shadowBlur = 5;
         ctx.beginPath();
-        ctx.arc(x + 16, y + 16, 14, Math.PI, 0);
-        
-        // Wobbly bottom
-        ctx.lineTo(x + 32, y + 32);
-        ctx.quadraticCurveTo(x + 24, y + 28, x + 16, y + 32);
-        ctx.quadraticCurveTo(x + 8, y + 28, x, y + 32);
+        // Aggressive spikes
+        ctx.moveTo(x+16, y);
+        ctx.lineTo(x+26, y+10);
+        ctx.lineTo(x+32, y+24);
+        ctx.lineTo(x+16, y+32);
+        ctx.lineTo(x, y+24);
+        ctx.lineTo(x+6, y+10);
         ctx.fill();
         ctx.shadowBlur = 0;
         
         // Angry Eyes
-        ctx.fillStyle = '#fff';
-        ctx.beginPath(); ctx.moveTo(x+10, y+10); ctx.lineTo(x+16, y+14); ctx.lineTo(x+10, y+16); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(x+22, y+10); ctx.lineTo(x+16, y+14); ctx.lineTo(x+22, y+16); ctx.fill();
+        ctx.fillStyle = '#000';
+        // Left
+        ctx.beginPath(); ctx.moveTo(x+8, y+12); ctx.lineTo(x+14, y+18); ctx.lineTo(x+8, y+18); ctx.fill();
+        // Right
+        ctx.beginPath(); ctx.moveTo(x+24, y+12); ctx.lineTo(x+18, y+18); ctx.lineTo(x+24, y+18); ctx.fill();
+        
+        ctx.fillStyle = '#fff'; // pupils
+        ctx.fillRect(x+10, y+15, 2, 2);
+        ctx.fillRect(x+20, y+15, 2, 2);
+    },
+
+    drawHut: (ctx, x, y, w, h, baseColor) => {
+        ctx.save();
+        ctx.translate(x, y);
+
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.beginPath(); ctx.ellipse(w/2, h, w/2 + 10, 10, 0, 0, Math.PI*2); ctx.fill();
+
+        // Main Dome
+        const grad = ctx.createLinearGradient(0,0,0,h);
+        grad.addColorStop(0, '#475569'); // Slate
+        grad.addColorStop(1, '#1e293b'); // Dark Slate
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(0, h);
+        ctx.quadraticCurveTo(0, 0, w/2, 0); // Left curve up
+        ctx.quadraticCurveTo(w, 0, w, h); // Right curve down
+        ctx.fill();
+
+        // Banding/Plating
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(5, h-10); ctx.quadraticCurveTo(w/2, h-30, w-5, h-10); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(15, h-40); ctx.quadraticCurveTo(w/2, h-60, w-15, h-40); ctx.stroke();
+
+        // Doorway
+        ctx.fillStyle = '#0f172a'; // Dark void
+        ctx.beginPath();
+        ctx.ellipse(w/2, h, 15, 25, 0, Math.PI, 0); 
+        ctx.fill();
+        
+        // Glow inside door
+        ctx.fillStyle = 'rgba(250, 204, 21, 0.2)'; // Yellow glow
+        ctx.beginPath();
+        ctx.ellipse(w/2, h, 10, 20, 0, Math.PI, 0); 
+        ctx.fill();
+        
+        // Antenna
+        ctx.strokeStyle = '#94a3b8';
+        ctx.beginPath(); ctx.moveTo(w/2, 0); ctx.lineTo(w/2, -15); ctx.stroke();
+        ctx.fillStyle = baseColor; 
+        ctx.beginPath(); ctx.arc(w/2, -15, 3, 0, Math.PI*2); ctx.fill();
+
+        ctx.restore();
     }
 };

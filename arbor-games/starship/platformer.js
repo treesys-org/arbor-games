@@ -38,15 +38,19 @@ export class PlatformerEngine {
         this.tiles = [];
         this.npcs = [];
         this.enemies = [];
+        this.props = []; // Decoration objects like Huts
         this.projectiles = [];
         this.shipObj = null; 
 
         this.levelWidth = 0;
         this.tileSize = 48; 
+        
+        // PHYSICS TUNING
         this.gravity = 0.8;
-        this.friction = 0.85;
-        this.speed = 1.5;
-        this.jumpForce = -18;
+        this.friction = 0.82; // Higher friction to stop sliding
+        this.speed = 1.2;     // Acceleration
+        this.maxSpeed = 8.0;  // Cap to prevent teleporting
+        this.jumpForce = -16;
         
         this.ui = {
             layer: document.getElementById('ui-planet'),
@@ -97,29 +101,43 @@ export class PlatformerEngine {
             bgMount: '#1e293b'
         };
         
-        // Safety timeout in case Data Fetch hangs
+        // Safety timeout
         const safetyTimer = setTimeout(() => {
             if(this.isLoading) {
                 console.warn("Level load timed out, forcing generation.");
                 this.generateWorld({ title: planet.data.title, text: "Data Uplink Failed. Simulation Mode." });
             }
-        }, 3000);
+        }, 5000);
 
-        // Async Data Fetch
+        // Async Data Fetch with STORY GENERATION
         if (window.Arbor && window.Arbor.content) {
-            // Use index if available, otherwise 0 or ID-based lookup could be implemented
             const idx = planet.data.index !== undefined ? planet.data.index : 0;
             
-            window.Arbor.content.getAt(idx).then(data => {
+            // We fetch the lesson, but we ALSO ask the AI for a story context
+            window.Arbor.content.getAt(idx).then(async (lessonData) => {
+                
+                let storyContext = null;
+                try {
+                     // Generar historia profunda
+                     const prompt = `
+                        Context: Planet "${lessonData.title}". Lesson Text: "${(lessonData.text || "").substring(0, 200)}".
+                        Task: Create a dramatic RPG dialogue for a Martian Elder.
+                        Scenario: The planet is infested by "Shadow Blobs" that stole the Knowledge Crystals.
+                        Output JSON: { "elder_greeting": "Help us! [Dramatic description of infestation]. Use the text content to explain why this knowledge is vital." }
+                     `;
+                     storyContext = await window.Arbor.ai.askJSON(prompt);
+                } catch(e) { console.log("AI Story failed, using fallback"); }
+
                 clearTimeout(safetyTimer);
-                this.generateWorld(data);
+                this.generateWorld(lessonData, storyContext);
+
             }).catch(e => {
                 console.warn("Arbor Content Load Error", e);
                 clearTimeout(safetyTimer);
                 this.generateWorld({ title: planet.data.title, text: "Signal lost. Data fragments corrupted." });
             });
         } else {
-            // Mock loading delay for visual feel
+            // Mock loading
             setTimeout(() => {
                 clearTimeout(safetyTimer);
                 this.generateWorld({ title: planet.data.title, text: "Simulation Mode. No data uplink." });
@@ -127,7 +145,7 @@ export class PlatformerEngine {
         }
     }
 
-    generateWorld(data) {
+    generateWorld(data, storyContext) {
         try {
             const rng = new SeededRandom(data.title);
             
@@ -138,8 +156,9 @@ export class PlatformerEngine {
             this.tiles = [];
             this.npcs = [];
             this.enemies = [];
+            this.props = [];
             this.projectiles = [];
-            this.activeDialogue = null; // Reset dialogue state
+            this.activeDialogue = null;
             this.ui.dialogueBox.style.display = 'none';
             this.levelWidth = 4000;
             
@@ -149,7 +168,10 @@ export class PlatformerEngine {
 
             // Generate Terrain & Entities
             for (let x = 0; x < this.levelWidth / this.tileSize; x++) {
-                if(rng.next() > 0.6 && x > 5) height += rng.pick([-1, 0, 1]); 
+                // Smooth terrain generation
+                if(x > 10 && x < (this.levelWidth/this.tileSize)-10) {
+                    if(rng.next() > 0.7) height += rng.pick([-1, 0, 1]); 
+                }
                 height = Math.max(8, Math.min(16, height));
 
                 // Surface & Dirt
@@ -166,112 +188,156 @@ export class PlatformerEngine {
                     });
                 }
 
+                const surfaceY = height * this.tileSize;
+
                 // Platforms
-                if (x > 8 && x < (this.levelWidth/this.tileSize)-5 && rng.next() > 0.85) {
+                if (x > 15 && x < (this.levelWidth/this.tileSize)-10 && rng.next() > 0.85) {
                     const py = height - rng.range(3, 5);
                     this.tiles.push({ x: x*this.tileSize, y: py*this.tileSize, w: this.tileSize, h: this.tileSize, type: 'plat' });
                 }
 
-                // Entities
-                if (x > 8 && rng.next() > 0.85) {
-                    if (rng.next() > 0.5) {
-                        // Scholar NPC - Assign text from lesson immediately
-                        const text = sentences[scholarCount % sentences.length] || "Searching for data...";
+                // Entities & Structures
+                if (x > 15 && x < (this.levelWidth/this.tileSize)-10) {
+                    const roll = rng.next();
+                    
+                    // HUT & NPC (Friendly Village)
+                    if (roll > 0.92) {
+                        // Hut Background
+                        this.props.push({
+                            x: x * this.tileSize - 20, 
+                            y: surfaceY - 80,
+                            type: 'hut',
+                            w: 100, h: 80
+                        });
+
+                        // Scholar NPC
+                        const text = sentences[scholarCount % sentences.length] || "Analyzing infestation patterns...";
                         this.npcs.push({ 
-                            x: x*this.tileSize, y: (height-1)*this.tileSize - 48, w: 32, h: 48, 
+                            x: x*this.tileSize + 20, y: surfaceY - 48, w: 32, h: 48, 
                             text: text,
                             type: 'scholar' 
                         });
                         scholarCount++;
-                    } else {
+                    } 
+                    // ENEMIES (Infestation)
+                    else if (roll < 0.15) { 
                         this.enemies.push({
-                            x: x*this.tileSize, y: (height-2)*this.tileSize, w: 32, h: 32,
-                            vx: rng.pick([-2, 2]), vy: 0, type: 'blob'
+                            x: x*this.tileSize, y: surfaceY - 32, w: 32, h: 32,
+                            vx: 0, vy: 0, 
+                            type: 'blob',
+                            aggro: false,
+                            startX: x*this.tileSize
                         });
                     }
                 }
             }
 
-            // Setup End Object
-            const endX = this.levelWidth - 300;
-            this.npcs.push({ x: endX, y: height*this.tileSize - 64, w: 32, h: 64, text: "Data Secured. Launching...", type: 'elder' });
-            this.tiles.push({ x: endX - 50, y: height*this.tileSize, w: 200, h: this.tileSize, type: 'surface' });
-
+            // START: Ship
             this.shipObj = { 
-                x: 50, 
+                x: 100, 
                 y: (groundY * this.tileSize) - 64 + 10, 
                 w: 64, h: 64 
             };
 
+            // START: Elder (Quest Giver)
+            const elderText = storyContext ? storyContext.elder_greeting : "Traveler! Our world is overrun. These shadows feed on ignorance. Destroy them and reclaim the Data Fragments!";
+            this.npcs.push({ 
+                x: 250, 
+                y: (groundY * this.tileSize) - 64, 
+                w: 32, h: 64, 
+                text: elderText, 
+                type: 'elder' 
+            });
+            
+            // First Hut for Elder
+            this.props.push({ x: 220, y: (groundY * this.tileSize) - 80, type: 'hut', w: 100, h: 80 });
+
+            // END: Exit Beacon
+            const endX = this.levelWidth - 300;
+            this.props.push({ x: endX, y: (height * this.tileSize) - 100, type: 'beacon', w: 40, h: 100 });
+            this.npcs.push({ 
+                x: endX + 50, 
+                y: height*this.tileSize - 48, 
+                w: 32, h: 48, 
+                text: "Sector Cleared. Launching...", 
+                type: 'beacon_npc' // Invisible trigger
+            });
+
             // Reset Player Physics
-            this.player.x = 150; 
-            this.player.y = (groundY * this.tileSize) - 150; // Spawn slightly higher
+            this.player.x = 100; 
+            this.player.y = (groundY * this.tileSize) - 200; 
             this.player.vx = 0; 
             this.player.vy = 0; 
             this.player.health = 100;
-            this.player.ammo = 0; 
+            this.player.ammo = 10; // Give ammo start
             this.player.state = 'idle';
             this.player.grounded = false;
             
-            // Force Camera Snap
-            this.camera.x = this.player.x - (this.game.width / this.zoom / 2);
-            this.camera.y = Math.min(this.player.y - (this.game.height / this.zoom / 2), 300);
-
             this.updateHUD();
-            this.isLoading = false; // UNBLOCK
+            this.isLoading = false; 
         } catch(e) {
             console.error("Critical World Gen Error", e);
-            this.isLoading = false; // Force unlock even on error
+            this.isLoading = false; 
         }
     }
 
     update() {
-        if (this.isLoading) return; // SKIP LOGIC WHILE LOADING
+        if (this.isLoading) return; 
 
         if (this.player.health <= 0) return;
 
+        // DIALOGUE HANDLING
         if (this.activeDialogue) {
             if (this.game.input.consume('ArrowUp') || this.game.input.consume(' ') || this.game.input.consume('Enter')) {
                 this.activeDialogue = null;
                 this.ui.dialogueBox.style.display = 'none';
                 
-                if (this.interactingNPC && this.interactingNPC.type === 'elder') {
+                if (this.interactingNPC && this.interactingNPC.type === 'beacon_npc') {
                     this.game.switchMode('space');
-                    if(window.Arbor && window.Arbor.game) window.Arbor.game.addXP(100);
+                    if(window.Arbor && window.Arbor.game) window.Arbor.game.addXP(200);
                 }
             }
             return; 
         }
 
+        // --- PLAYER PHYSICS MOVEMENT FIXED ---
         if (this.game.input.keys['ArrowLeft']) {
             this.player.vx -= this.speed;
             this.player.facing = -1;
             this.player.state = 'run';
-            if (this.player.grounded && Math.random() > 0.8) this.game.spawnParticle(this.player.x + 16, this.player.y + 48, this.theme.ground, 1, 3);
         }
         else if (this.game.input.keys['ArrowRight']) {
             this.player.vx += this.speed;
             this.player.facing = 1;
             this.player.state = 'run';
-            if (this.player.grounded && Math.random() > 0.8) this.game.spawnParticle(this.player.x + 16, this.player.y + 48, this.theme.ground, 1, 3);
         } else {
             this.player.state = 'idle';
+            // Stop faster if no input
+            this.player.vx *= 0.8; 
         }
 
+        // Clamp Speed (Prevent Teleporting)
+        this.player.vx = Math.max(-this.maxSpeed, Math.min(this.maxSpeed, this.player.vx));
+
+        // Jump
         if ((this.game.input.keys['ArrowUp'] || this.game.input.keys[' ']) && this.player.grounded) {
             this.player.vy = this.jumpForce;
             this.player.grounded = false;
             this.game.spawnParticle(this.player.x + 16, this.player.y + 48, '#fff', 3);
         }
 
-        this.player.vx *= this.friction;
-        this.player.vy += this.gravity;
+        // Apply Physics
+        this.player.vx *= this.friction; // Friction
+        this.player.vy += this.gravity; // Gravity
         
-        if(this.player.vy > 15) this.player.vy = 15;
+        // Terminal Velocity for falling
+        if(this.player.vy > 18) this.player.vy = 18;
 
+        // X Movement & Collision
         this.player.x += this.player.vx;
         this.checkCol(true);
         
+        // Y Movement & Collision
         this.player.y += this.player.vy;
         this.player.grounded = false;
         this.checkCol(false);
@@ -279,34 +345,90 @@ export class PlatformerEngine {
         if (!this.player.grounded) this.player.state = 'jump';
         this.player.animFrame++;
 
+        // Shooting
         if (this.game.input.consume('z')) this.shoot();
 
+        // Projectile Update
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const p = this.projectiles[i];
             p.x += p.vx;
             p.life--;
             if (p.life <= 0) { this.projectiles.splice(i, 1); continue; }
             
+            // Hit Enemy
             for (let j = this.enemies.length - 1; j >= 0; j--) {
                 const e = this.enemies[j];
                 if (rectIntersect({x: p.x, y: p.y, w: p.w, h: p.h}, e)) {
                     this.enemies.splice(j, 1);
                     this.projectiles.splice(i, 1);
-                    this.game.spawnParticle(e.x, e.y, '#ef4444', 4, 6);
+                    this.game.spawnParticle(e.x, e.y, '#ef4444', 6, 8);
+                    this.game.shake(5);
                     break;
                 }
             }
         }
 
+        // --- ENEMY AI (AGGRESSIVE) ---
+        this.enemies.forEach(e => {
+            const dist = this.player.x - e.x;
+            const distY = this.player.y - e.y;
+            const range = 400; // Aggro range
+
+            // Chase Logic
+            if (Math.abs(dist) < range) {
+                e.aggro = true;
+                const dir = Math.sign(dist);
+                e.vx += dir * 0.2; // Accelerate towards player
+                e.vx = Math.max(-4, Math.min(4, e.vx)); // Cap speed
+
+                // Jump if wall or player is above
+                if (e.grounded && (Math.random() < 0.02 || (distY < -50 && Math.random() < 0.05))) {
+                    e.vy = -12;
+                    e.grounded = false;
+                }
+            } else {
+                e.vx *= 0.9; // Slow down if lost
+            }
+
+            // Gravity & Move
+            e.vy += this.gravity;
+            e.x += e.vx;
+            // Simple X Collision
+            this.tiles.forEach(t => {
+                if(rectIntersect(e, t)) {
+                    e.x -= e.vx; e.vx *= -0.5; // Bounce off wall
+                }
+            });
+
+            e.y += e.vy;
+            e.grounded = false;
+            // Simple Y Collision
+            this.tiles.forEach(t => {
+                if(rectIntersect(e, t)) {
+                    if(e.vy > 0) { e.y = t.y - e.h; e.grounded = true; }
+                    e.vy = 0;
+                }
+            });
+
+            // Hit Player
+            if (rectIntersect(e, this.player)) {
+                this.damage(10);
+                // Knockback
+                this.player.vx = Math.sign(this.player.x - e.x) * 10;
+                this.player.vy = -5;
+                e.vx *= -1;
+            }
+        });
+
+        // Camera Logic
         const targetCamX = this.player.x - (this.game.width / this.zoom / 2);
         const targetCamY = this.player.y - (this.game.height / this.zoom / 2);
-        
-        // Y Clamping (Don't look underground)
-        const clampedTargetY = Math.min(targetCamY, 300);
+        const clampedTargetY = Math.min(targetCamY, 300); // Don't look too deep underground
 
         this.camera.x += (targetCamX - this.camera.x) * 0.1;
         this.camera.y += (clampedTargetY - this.camera.y) * 0.1;
 
+        // Interaction Check
         let nearby = null;
         let isShip = false;
 
@@ -327,13 +449,20 @@ export class PlatformerEngine {
             } else {
                 this.interactingNPC = nearby;
                 if (nearby.type === 'scholar') {
-                    this.player.ammo += 5;
+                    this.player.ammo += 10;
+                    this.game.spawnParticle(nearby.x, nearby.y, '#facc15', 5, 5);
                     this.updateHUD();
                 }
-                this.showDialogue(nearby.type.toUpperCase(), nearby.text);
+                // Determine text based on type
+                let text = nearby.text;
+                let speaker = nearby.type.toUpperCase();
+                if (nearby.type === 'beacon_npc') { speaker = "SYSTEM"; text = "Orbit Synchronized. Ready for extraction?"; }
+                
+                this.showDialogue(speaker, text);
             }
         }
         
+        // Fall Death
         if (this.player.y > 2000) this.damage(100);
     }
 
@@ -367,8 +496,8 @@ export class PlatformerEngine {
 
     checkCol(isX) {
         for(let t of this.tiles) {
-            // Culling optimization for physics
-            if (Math.abs(t.x - this.player.x) > 400 || Math.abs(t.y - this.player.y) > 400) continue;
+            // Optimization
+            if (Math.abs(t.x - this.player.x) > 200 || Math.abs(t.y - this.player.y) > 200) continue;
             
             if (rectIntersect(this.player, t)) {
                 if (isX) {
@@ -396,26 +525,23 @@ export class PlatformerEngine {
     }
 
     drawParallax(ctx) {
-        // Sky
         const grad = ctx.createLinearGradient(0, 0, 0, this.game.height);
         grad.addColorStop(0, withAlpha(this.theme.sky, 'FF'));
         grad.addColorStop(1, withAlpha(this.theme.bgMount, 'FF'));
         ctx.fillStyle = grad;
         ctx.fillRect(0,0,this.game.width, this.game.height);
         
-        // Stars in BG
         ctx.fillStyle = '#fff';
-        for(let i=0; i<50; i++) {
-             const px = (i * 123456) % this.game.width;
-             const py = (i * 654321) % (this.game.height/2);
+        for(let i=0; i<30; i++) {
+             const px = (i * 91283) % this.game.width;
+             const py = (i * 38127) % (this.game.height/2);
              ctx.globalAlpha = 0.5;
              ctx.beginPath(); ctx.arc(px, py, 1, 0, Math.PI*2); ctx.fill();
         }
         ctx.globalAlpha = 1;
 
-        // Distant Mountains (Move slow)
-        const mountOffset = this.camera.x * 0.1; // Parallax Factor 0.1
-        ctx.fillStyle = '#0f172a'; // Very dark blue
+        const mountOffset = this.camera.x * 0.1; 
+        ctx.fillStyle = '#0f172a'; 
         ctx.beginPath();
         ctx.moveTo(0, this.game.height);
         for(let x=0; x<this.game.width + 50; x+=50) {
@@ -424,121 +550,69 @@ export class PlatformerEngine {
         }
         ctx.lineTo(this.game.width, this.game.height);
         ctx.fill();
-
-        // Near Hills (Move medium)
-        const hillOffset = this.camera.x * 0.3; 
-        ctx.fillStyle = withAlpha(this.theme.ground, '33'); // Semi-transparent planet color
-        ctx.beginPath();
-        ctx.moveTo(0, this.game.height);
-        for(let x=0; x<=this.game.width + 50; x+=50) {
-            const h = Math.abs(Math.sin((x + hillOffset) * 0.005)) * 50 + 50;
-            ctx.lineTo(x, this.game.height - h);
-        }
-        ctx.lineTo(this.game.width, this.game.height);
-        ctx.fill();
     }
 
     draw(ctx) {
-        // DRAW LOADING SCREEN IF LOADING
         if (this.isLoading) {
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0,0,this.game.width, this.game.height);
-            
-            // Atmospheric Glow
-            const grad = ctx.createRadialGradient(this.game.width/2, this.game.height/2, 50, this.game.width/2, this.game.height/2, 400);
-            
-            // Fix for missing theme ground
-            const groundColor = this.theme.ground || '#4ade80';
-            grad.addColorStop(0, withAlpha(groundColor, 'FF'));
-            grad.addColorStop(1, 'transparent');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0,0,this.game.width, this.game.height);
-
-            // Text
-            ctx.save();
-            ctx.textAlign = 'center';
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 30px "Orbitron", monospace';
-            
-            const dots = ".".repeat(Math.floor(Date.now() / 500) % 4);
-            ctx.fillText("ENTERING ATMOSPHERE" + dots, this.game.width/2, this.game.height/2 - 20);
-            
-            ctx.font = '16px monospace';
-            ctx.fillStyle = '#86efac';
-            ctx.fillText("GENERATING TERRAIN...", this.game.width/2, this.game.height/2 + 20);
-            
-            // Loading Bar
-            ctx.strokeStyle = '#fff';
-            ctx.strokeRect(this.game.width/2 - 100, this.game.height/2 + 50, 200, 10);
-            ctx.fillStyle = '#fff';
-            
-            // Infinite progress bar animation
-            const progress = (Date.now() % 1000) / 1000;
-            ctx.fillRect(this.game.width/2 - 98 + (progress * 196), this.game.height/2 + 52, 40, 6);
-            
-            ctx.restore();
+            // Draw Loading
+            ctx.fillStyle = '#000'; ctx.fillRect(0,0,this.game.width, this.game.height);
+            ctx.fillStyle = '#fff'; ctx.font = '20px monospace'; ctx.textAlign = 'center';
+            ctx.fillText("DESCENDING TO SURFACE...", this.game.width/2, this.game.height/2);
             return;
         }
 
-        // NORMAL DRAW
-        // Draw Parallax Backgrounds
         this.drawParallax(ctx);
 
         ctx.save();
-        
         ctx.scale(this.zoom, this.zoom);
         ctx.translate(-Math.floor(this.camera.x), -Math.floor(this.camera.y));
+
+        // Props (Background Layer - Huts)
+        this.props.forEach(p => {
+            if (p.type === 'hut') Sprites.drawHut(ctx, p.x, p.y, p.w, p.h, this.theme.ground);
+            if (p.type === 'beacon') {
+                ctx.fillStyle = '#94a3b8'; ctx.fillRect(p.x+10, p.y, 20, p.h);
+                ctx.fillStyle = '#22c55e'; ctx.shadowColor = '#22c55e'; ctx.shadowBlur = 10;
+                ctx.beginPath(); ctx.arc(p.x+20, p.y, 10, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
+            }
+        });
 
         // Tiles
         this.tiles.forEach(t => {
             if (t.x + t.w < this.camera.x || t.x > this.camera.x + (this.game.width/this.zoom)) return;
-            
-            // Texture with border
             ctx.fillStyle = t.type === 'surface' ? this.theme.ground : '#0f172a';
             ctx.fillRect(t.x, t.y, t.w, t.h);
-            
-            // "Highlight" top
             if(t.type === 'surface') {
-                ctx.fillStyle = 'rgba(255,255,255,0.1)';
-                ctx.fillRect(t.x, t.y, t.w, 4);
-                
-                // Grass Decoration
+                ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fillRect(t.x, t.y, t.w, 4);
                 if(t.deco === 1) {
                     ctx.fillStyle = this.theme.ground;
                     ctx.beginPath(); ctx.moveTo(t.x+10, t.y); ctx.lineTo(t.x+12, t.y-6); ctx.lineTo(t.x+14, t.y); ctx.fill();
-                    ctx.beginPath(); ctx.moveTo(t.x+20, t.y); ctx.lineTo(t.x+24, t.y-8); ctx.lineTo(t.x+28, t.y); ctx.fill();
                 }
             }
-            
-            // Grid line
-            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-            ctx.strokeRect(t.x, t.y, t.w, t.h);
+            ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.strokeRect(t.x, t.y, t.w, t.h);
         });
 
         // Ship
         if (this.shipObj) {
             Sprites.drawShipLanded(ctx, this.shipObj.x, this.shipObj.y);
-            
             if (Math.abs(this.player.x - this.shipObj.x) < 80) {
-                 ctx.font = '8px monospace';
-                 ctx.fillStyle = '#fff';
-                 ctx.textAlign = 'center';
+                 ctx.font = '8px monospace'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
                  ctx.fillText("TAKEOFF [UP]", this.shipObj.x + 32, this.shipObj.y - 10);
             }
         }
 
         // NPCs
         this.npcs.forEach(n => {
+            if (n.type === 'beacon_npc') return;
             Sprites.drawAlien(ctx, n.x, n.y, n.type === 'elder' ? '#facc15' : '#22c55e', n.h, this.player.animFrame);
             if (Math.abs(this.player.x - n.x) < 80) {
-                ctx.fillStyle = '#fff';
-                ctx.beginPath(); ctx.moveTo(n.x+16, n.y-10); ctx.lineTo(n.x+24, n.y-20); ctx.lineTo(n.x+8, n.y-20); ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(n.x+16, n.y-10); ctx.lineTo(n.x+24, n.y-20); ctx.lineTo(n.x+8, n.y-20); ctx.fill();
             }
         });
 
         // Enemies
         this.enemies.forEach(e => {
-            const bounce = Math.abs(Math.sin(this.player.animFrame * 0.2)) * 5;
+            const bounce = Math.abs(Math.sin(this.player.animFrame * 0.4)) * 5; // Faster bounce
             Sprites.drawBlob(ctx, e.x, e.y - bounce, '#ef4444');
         });
 
@@ -555,7 +629,7 @@ export class PlatformerEngine {
 
         ctx.restore();
         
-        // Atmosphere Overlay
+        // Atmosphere
         const grad = ctx.createLinearGradient(0, 0, 0, this.game.height);
         grad.addColorStop(0, withAlpha(this.theme.ground, '33'));
         grad.addColorStop(1, 'transparent');
@@ -565,4 +639,3 @@ export class PlatformerEngine {
         ctx.globalCompositeOperation = 'source-over';
     }
 }
-
