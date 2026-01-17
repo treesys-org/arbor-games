@@ -1,112 +1,133 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Starship Learner</title>
+    <title>Starship Learner: Odyssey</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Nunito', sans-serif; overflow: hidden; background: #000; color: white; touch-action: none; }
-        #game-canvas { display: block; width: 100%; height: 100%; }
+        body { font-family: 'Share Tech Mono', monospace; overflow: hidden; background: #000; color: white; touch-action: none; user-select: none; }
+        #game-canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
         
-        /* HUD Elements */
-        .hud-panel { pointer-events: none; position: absolute; z-index: 10; }
-        
-        /* Scanlines Effect */
+        /* CRT Scanline Effect */
         .crt::before {
-            content: " ";
-            display: block;
-            position: absolute;
-            top: 0; left: 0; bottom: 0; right: 0;
+            content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            z-index: 5;
-            background-size: 100% 2px, 3px 100%;
-            pointer-events: none;
+            z-index: 5; background-size: 100% 2px, 3px 100%; pointer-events: none;
         }
 
-        /* Lesson Modal */
-        #lesson-computer {
-            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+        /* UI Layers */
+        .ui-layer { position: absolute; pointer-events: none; z-index: 10; width: 100%; height: 100%; top:0; left:0; }
+        .hud-panel { position: absolute; background: rgba(0, 10, 20, 0.8); border: 1px solid #0ea5e9; padding: 10px; border-radius: 4px; backdrop-filter: blur(4px); }
+
+        /* Dialogue Box */
+        #dialogue-box {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 800px; min-height: 120px;
+            background: rgba(0,0,0,0.95); border: 2px solid #22c55e;
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.2);
+            padding: 20px; display: none; z-index: 50; pointer-events: auto;
         }
-        .lesson-open { transform: scale(1) !important; opacity: 1 !important; pointer-events: auto !important; }
-        .lesson-closed { transform: scale(0.9); opacity: 0; pointer-events: none; }
+        #dialogue-speaker { color: #22c55e; font-family: 'Orbitron', sans-serif; font-weight: 900; margin-bottom: 8px; text-transform: uppercase; }
+        #dialogue-text { font-size: 1.1rem; line-height: 1.4; color: #fff; }
+        .blinking-cursor::after { content: '█'; animation: blink 1s infinite; margin-left: 5px; color: #22c55e; }
         
-        .prose h1 { font-size: 1.5rem; font-weight: 900; margin-bottom: 1rem; color: #fff; }
-        .prose h2 { font-size: 1.2rem; font-weight: 700; margin-top: 1.5rem; margin-bottom: 0.5rem; color: #94a3b8; }
-        .prose p { margin-bottom: 1rem; line-height: 1.6; color: #cbd5e1; }
-        .prose ul { list-style: disc; padding-left: 1.5rem; margin-bottom: 1rem; }
-        .prose code { background: #1e293b; padding: 0.2rem 0.4rem; rounded: 0.25rem; font-family: monospace; color: #f472b6; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        /* Platformer HUD */
+        #health-bar {
+            width: 200px; height: 16px; background: #333; border: 2px solid #fff;
+            position: absolute; top: 20px; left: 20px; transform: skewX(-20deg);
+        }
+        #health-fill { width: 100%; height: 100%; background: #ef4444; transition: width 0.2s; }
+        #suit-energy { position: absolute; top: 40px; left: 20px; color: #0ea5e9; font-size: 0.8rem; }
+        
+        /* Ammo Display */
+        #ammo-display {
+            position: absolute; top: 70px; left: 20px;
+            font-size: 1.2rem; color: #facc15; font-weight: bold;
+            text-shadow: 0 0 5px rgba(250, 204, 21, 0.5);
+        }
+
+        /* Screens */
+        .full-screen { position: absolute; inset: 0; background: #000; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; }
+        .hidden { display: none !important; }
+        
+        #prologue-screen p { max-width: 600px; text-align: center; font-size: 1.2rem; color: #94a3b8; margin-bottom: 2rem; }
     </style>
 </head>
 <body class="crt">
 
-    <!-- LOADING SCREEN -->
-    <div id="loading" class="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center text-green-500 font-mono">
-        <div class="text-4xl mb-4 animate-bounce">🚀</div>
-        <p>INITIALIZING NAVIGATION SYSTEMS...</p>
-        <p id="loading-status" class="text-xs mt-2 opacity-70">Waiting for Arbor Bridge...</p>
-    </div>
-
-    <!-- HUD -->
-    <div class="hud-panel top-4 left-4">
-        <h1 class="text-xl font-black italic tracking-tighter text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">STARSHIP LEARNER</h1>
-        <p class="text-xs text-slate-400 font-mono">SECTOR: <span id="sector-name">UNKNOWN</span></p>
-    </div>
-
-    <div class="hud-panel bottom-4 left-4 font-mono text-xs text-green-400">
-        <div class="mb-1">VEL: <span id="hud-vel">0</span> m/s</div>
-        <div>POS: <span id="hud-pos">0,0</span></div>
-    </div>
-
-    <div class="hud-panel top-4 right-4 text-right">
-        <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Mission Progress</div>
-        <div class="text-2xl font-black text-white"><span id="visited-count">0</span> / <span id="total-count">0</span></div>
-    </div>
-
-    <!-- LANDING PROMPT -->
-    <div id="landing-prompt" class="hud-panel top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center transition-opacity duration-200 opacity-0">
-        <div class="bg-blue-600/90 text-white px-6 py-3 rounded-lg border-2 border-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.5)] backdrop-blur-md">
-            <p class="text-xs font-bold uppercase tracking-widest mb-1 text-blue-200">Orbit Established</p>
-            <h2 id="target-planet" class="text-xl font-black mb-2">Lesson Name</h2>
-            <div class="bg-white text-blue-900 font-bold px-3 py-1 rounded text-sm inline-block animate-pulse">
-                PRESS [SPACE] TO LAND
-            </div>
-        </div>
-    </div>
-
-    <!-- LESSON COMPUTER OVERLAY -->
-    <div id="lesson-computer" class="fixed inset-0 z-40 bg-slate-900/90 backdrop-blur-lg flex items-center justify-center p-4 lesson-closed">
-        <div class="bg-slate-950 border border-slate-700 w-full max-w-2xl h-[80vh] rounded-2xl shadow-2xl flex flex-col relative overflow-hidden">
-            
-            <!-- Computer Header -->
-            <div class="bg-slate-900 p-4 border-b border-slate-800 flex justify-between items-center shrink-0">
-                <div class="flex items-center gap-2">
-                    <div class="w-3 h-3 rounded-full bg-red-500"></div>
-                    <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
-                    <div class="w-3 h-3 rounded-full bg-green-500"></div>
-                    <span class="ml-2 text-xs font-mono text-slate-400 uppercase">Archive Terminal</span>
-                </div>
-                <button id="btn-liftoff" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-2">
-                    <span>🚀</span> Liftoff (Close)
-                </button>
-            </div>
-
-            <!-- Content Scroll -->
-            <div class="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                <div id="lesson-content" class="prose max-w-none">
-                    <!-- Dynamic Content -->
-                </div>
-            </div>
-
-            <!-- Footer -->
-            <div class="p-3 bg-slate-900 border-t border-slate-800 text-center shrink-0">
-                <p class="text-[10px] text-slate-500 font-mono">DATA RETRIEVED FROM ARBOR KNOWLEDGE CORE</p>
-            </div>
-        </div>
-    </div>
-
+    <!-- CANVAS -->
     <canvas id="game-canvas"></canvas>
+
+    <!-- LOADING -->
+    <div id="loading-screen" class="full-screen">
+        <div class="text-4xl mb-4 text-cyan-400 animate-pulse font-bold font-mono">SYSTEM BOOT</div>
+        <div id="loading-status" class="text-xs text-slate-500">Connecting to Neural Link...</div>
+    </div>
+
+    <!-- PROLOGUE -->
+    <div id="prologue-screen" class="full-screen hidden">
+        <h1 class="text-4xl md:text-6xl font-black text-cyan-500 mb-8 font-[Orbitron] tracking-widest">YEAR 3042</h1>
+        <div id="prologue-text" class="space-y-4 font-mono">
+            <p>The Great Data Collapse destroyed all Knowledge Archives.</p>
+            <p>Humanity is reverting to the Dark Ages.</p>
+            <p>You are a <span class="text-green-400">Knowledge Keeper</span>.</p>
+            <p>Use your <b>Knowledge Blaster [Z]</b>. Reload it by learning from <span class="text-yellow-400">Martians</span>.</p>
+        </div>
+        <button id="btn-start" class="mt-8 border-2 border-cyan-500 text-cyan-500 px-8 py-3 hover:bg-cyan-500 hover:text-black font-bold uppercase tracking-widest transition-all">
+            INITIALIZE SUIT
+        </button>
+    </div>
+
+    <!-- UI: SPACE MODE -->
+    <div id="ui-space" class="ui-layer hidden">
+        <div class="hud-panel bottom-4 left-4">
+            <div class="text-xs text-slate-400">THRUSTERS</div>
+            <div id="hud-vel" class="text-xl font-bold text-cyan-400">0 m/s</div>
+        </div>
+        <div class="hud-panel top-4 right-4 text-right">
+            <div class="text-xs text-slate-400">SYSTEM</div>
+            <div id="sector-name" class="text-lg font-bold text-white">UNKNOWN</div>
+        </div>
+        
+        <div id="landing-prompt" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center hidden">
+            <div class="bg-black/80 border-2 border-green-500 p-4 rounded-lg backdrop-blur">
+                <div class="text-green-500 font-bold uppercase text-xs mb-1">ORBIT ESTABLISHED</div>
+                <h2 id="target-planet" class="text-2xl font-[Orbitron] text-white mb-2">PLANET NAME</h2>
+                <div class="text-sm bg-green-600 text-black px-2 py-1 font-bold animate-pulse">PRESS [SPACE] TO LAND</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- UI: PLANET MODE -->
+    <div id="ui-planet" class="ui-layer hidden">
+        <div id="health-bar"><div id="health-fill"></div></div>
+        <div id="suit-energy">SUIT INTEGRITY</div>
+        <div id="ammo-display">DATA AMMO: 0</div>
+        
+        <div class="hud-panel top-4 right-4">
+            <div class="text-xs text-slate-400">MISSION GOAL</div>
+            <div class="text-sm text-yellow-400">Find the Elder Scholar</div>
+        </div>
+
+        <div id="dialogue-box">
+            <div id="dialogue-speaker">MARCIANO</div>
+            <div id="dialogue-text" class="blinking-cursor">...</div>
+            <div class="text-right text-[10px] text-slate-500 mt-2">[SPACE] NEXT</div>
+        </div>
+        
+        <div id="death-screen" class="absolute inset-0 bg-red-900/40 flex items-center justify-center hidden">
+            <div class="text-center">
+                <h2 class="text-5xl font-black text-white mb-2 font-[Orbitron]">MIA</h2>
+                <p class="text-red-200 mb-4">SUIT CRITICAL. EVACUATING.</p>
+                <div class="text-sm bg-white text-black px-4 py-2 font-bold">[R] RESPAWN</div>
+            </div>
+        </div>
+    </div>
 
     <script type="module" src="./game.js"></script>
 </body>

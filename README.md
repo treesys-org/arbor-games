@@ -1,3 +1,4 @@
+
 # 🎮 Arbor Games (The Arcade)
 
 **The Future of Educational Gaming: Context-Aware Engines.**
@@ -257,32 +258,48 @@ Paste this into `meta.json`.
 
 When inside Arbor, `window.Arbor` is available.
 
-### `Arbor.user` (Identity)
+### 1. Identity (`Arbor.user`)
 *   `username`: String (e.g., "Alice")
 *   `lang`: String (e.g., "EN", "ES", "DE"). **Crucial for prompts.**
 *   `avatar`: Emoji or URL.
 
-### `Arbor.content.getNext()` (Raw Data)
-Access the current lesson before asking the AI.
+### 2. Content & Navigation (`Arbor.content`)
+
+**Method A: Linear Access (Default)**
+Used for most games (RPG, Quiz). Gets the *active* lesson immediately.
 ```javascript
 const lesson = await window.Arbor.content.getNext();
 console.log(lesson.title); // "Photosynthesis"
 console.log(lesson.text);  // "The process by which plants..."
 ```
 
-### `Arbor.ai.askJSON(prompt)` (Intelligence)
-Sends your prompt + lesson text to the LLM. Returns a JS Object.
+**Method B: Non-Linear Access (Advanced)**
+Used for Galaxy Maps, Hubs, or Explorers (like *Starship Learner*).
+Allows you to build a map of the entire syllabus.
+
+```javascript
+// 1. Get the Syllabus (List of metadata)
+// Returns: [{ id: "uuid", title: "Lesson 1", index: 0, status: "completed" }, ...]
+const modules = window.Arbor.content.getList();
+
+// 2. Load Content Specific (When player lands on a planet/node)
+// Returns: Full lesson object { id, title, text, ... }
+const specificLesson = await window.Arbor.content.getAt(2);
+```
+
+### 3. Intelligence (`Arbor.ai`)
+`Arbor.ai.askJSON(prompt)` sends your prompt + lesson text to the LLM. Returns a JS Object.
 ```javascript
 const level = await window.Arbor.ai.askJSON("Create 3 enemies.");
 ```
 
-### `Arbor.game.addXP(amount)` (Gamification)
-Awards experience points to the user's global profile.
+### 4. Gamification (`Arbor.game`)
+`Arbor.game.addXP(amount)` awards experience points to the user's global profile.
 ```javascript
 window.Arbor.game.addXP(100);
 ```
 
-### `Arbor.storage` (Persistence)
+### 5. Persistence (`Arbor.storage`)
 Save data that persists between game sessions (even if the user changes lessons).
 Data is stored in the user's local browser or synced cloud account.
 

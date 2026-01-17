@@ -1,0 +1,9 @@
+
+{
+  "name": "Starship Learner: Odyssey",
+  "description": "Explora sistemas solares generados proceduralmente. Aterriza en planetas (lecciones), sobrevive al modo plataformas y recupera el conocimiento de los Sabios Marcianos.",
+  "path": "index.html",
+  "icon": "🪐",
+  "version": "2.0.0",
+  "author": "Arbor Official"
+}
