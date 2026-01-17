@@ -5,6 +5,20 @@
  */
 import { SeededRandom, rectIntersect, Sprites } from './utils.js';
 
+// Helper to handle alpha on different color formats (Hex vs HSL)
+function withAlpha(color, hexAlpha) {
+    if (!color) return '#000000' + hexAlpha;
+    if (color.startsWith('#')) {
+        // Ensure we don't double append if it already has alpha
+        return color.length > 7 ? color : color + hexAlpha;
+    }
+    if (color.startsWith('hsl(')) {
+        const val = parseInt(hexAlpha, 16) / 255;
+        return color.replace('hsl', 'hsla').replace(')', `, ${val.toFixed(2)})`);
+    }
+    return color;
+}
+
 export class PlatformerEngine {
     constructor(game) {
         this.game = game;
@@ -353,7 +367,7 @@ export class PlatformerEngine {
 
     checkCol(isX) {
         for(let t of this.tiles) {
-            // FIX: INCREASED CULL RANGE from 100 to 400 to prevent physics freezing/skipping on large screens
+            // Culling optimization for physics
             if (Math.abs(t.x - this.player.x) > 400 || Math.abs(t.y - this.player.y) > 400) continue;
             
             if (rectIntersect(this.player, t)) {
@@ -384,8 +398,8 @@ export class PlatformerEngine {
     drawParallax(ctx) {
         // Sky
         const grad = ctx.createLinearGradient(0, 0, 0, this.game.height);
-        grad.addColorStop(0, this.theme.sky);
-        grad.addColorStop(1, this.theme.bgMount);
+        grad.addColorStop(0, withAlpha(this.theme.sky, 'FF'));
+        grad.addColorStop(1, withAlpha(this.theme.bgMount, 'FF'));
         ctx.fillStyle = grad;
         ctx.fillRect(0,0,this.game.width, this.game.height);
         
@@ -413,7 +427,7 @@ export class PlatformerEngine {
 
         // Near Hills (Move medium)
         const hillOffset = this.camera.x * 0.3; 
-        ctx.fillStyle = this.theme.ground + '33'; // Semi-transparent planet color
+        ctx.fillStyle = withAlpha(this.theme.ground, '33'); // Semi-transparent planet color
         ctx.beginPath();
         ctx.moveTo(0, this.game.height);
         for(let x=0; x<=this.game.width + 50; x+=50) {
@@ -435,7 +449,7 @@ export class PlatformerEngine {
             
             // Fix for missing theme ground
             const groundColor = this.theme.ground || '#4ade80';
-            grad.addColorStop(0, groundColor);
+            grad.addColorStop(0, withAlpha(groundColor, 'FF'));
             grad.addColorStop(1, 'transparent');
             ctx.fillStyle = grad;
             ctx.fillRect(0,0,this.game.width, this.game.height);
@@ -543,7 +557,7 @@ export class PlatformerEngine {
         
         // Atmosphere Overlay
         const grad = ctx.createLinearGradient(0, 0, 0, this.game.height);
-        grad.addColorStop(0, this.theme.ground + '33');
+        grad.addColorStop(0, withAlpha(this.theme.ground, '33'));
         grad.addColorStop(1, 'transparent');
         ctx.fillStyle = grad;
         ctx.globalCompositeOperation = 'overlay';
@@ -551,3 +565,4 @@ export class PlatformerEngine {
         ctx.globalCompositeOperation = 'source-over';
     }
 }
+
