@@ -1,5 +1,4 @@
 
-
 /**
  * PLATFORMER.JS
  * Side-scrolling planetary exploration mode.
@@ -79,116 +78,137 @@ export class PlatformerEngine {
         
         // Setup Theme
         this.theme = {
-            ground: planet.color,
+            ground: planet.color || '#334155',
             sky: '#0f172a',
             bgMount: '#1e293b'
         };
         
+        // Safety timeout in case Data Fetch hangs
+        const safetyTimer = setTimeout(() => {
+            if(this.isLoading) {
+                console.warn("Level load timed out, forcing generation.");
+                this.generateWorld({ title: planet.data.title, text: "Data Uplink Failed. Simulation Mode." });
+            }
+        }, 3000);
+
         // Async Data Fetch
         if (window.Arbor && window.Arbor.content) {
-            window.Arbor.content.getAt(planet.data.index).then(data => {
+            // Use index if available, otherwise 0 or ID-based lookup could be implemented
+            const idx = planet.data.index !== undefined ? planet.data.index : 0;
+            
+            window.Arbor.content.getAt(idx).then(data => {
+                clearTimeout(safetyTimer);
                 this.generateWorld(data);
             }).catch(e => {
                 console.warn("Arbor Content Load Error", e);
+                clearTimeout(safetyTimer);
                 this.generateWorld({ title: planet.data.title, text: "Signal lost. Data fragments corrupted." });
             });
         } else {
             // Mock loading delay for visual feel
             setTimeout(() => {
+                clearTimeout(safetyTimer);
                 this.generateWorld({ title: planet.data.title, text: "Simulation Mode. No data uplink." });
             }, 1000);
         }
     }
 
     generateWorld(data) {
-        const rng = new SeededRandom(data.title);
-        
-        // Process Text
-        const cleanText = (data.text || "").replace(/<[^>]*>/g, '');
-        const sentences = cleanText.split('. ').filter(s => s.length > 10);
-        
-        this.tiles = [];
-        this.npcs = [];
-        this.enemies = [];
-        this.projectiles = [];
-        this.levelWidth = 4000;
-        
-        const groundY = 12; 
-        let height = groundY;
-        let scholarCount = 0;
+        try {
+            const rng = new SeededRandom(data.title);
+            
+            // Process Text
+            const cleanText = (data.text || "").replace(/<[^>]*>/g, '');
+            const sentences = cleanText.split('. ').filter(s => s.length > 10);
+            
+            this.tiles = [];
+            this.npcs = [];
+            this.enemies = [];
+            this.projectiles = [];
+            this.activeDialogue = null; // Reset dialogue state
+            this.ui.dialogueBox.style.display = 'none';
+            this.levelWidth = 4000;
+            
+            const groundY = 12; 
+            let height = groundY;
+            let scholarCount = 0;
 
-        // Generate Terrain & Entities
-        for (let x = 0; x < this.levelWidth / this.tileSize; x++) {
-            if(rng.next() > 0.6 && x > 5) height += rng.pick([-1, 0, 1]); 
-            height = Math.max(8, Math.min(16, height));
+            // Generate Terrain & Entities
+            for (let x = 0; x < this.levelWidth / this.tileSize; x++) {
+                if(rng.next() > 0.6 && x > 5) height += rng.pick([-1, 0, 1]); 
+                height = Math.max(8, Math.min(16, height));
 
-            // Surface & Dirt
-            for (let y = height; y < 20; y++) {
-                const type = y === height ? 'surface' : 'deep';
-                let deco = 0;
-                if (type === 'surface' && rng.next() > 0.5) deco = rng.pick([1, 2]); // 1=grass, 2=rock
-                
-                this.tiles.push({ 
-                    x: x*this.tileSize, y: y*this.tileSize, 
-                    w: this.tileSize, h: this.tileSize, 
-                    type: type,
-                    deco: deco
-                });
-            }
-
-            // Platforms
-            if (x > 8 && x < (this.levelWidth/this.tileSize)-5 && rng.next() > 0.85) {
-                const py = height - rng.range(3, 5);
-                this.tiles.push({ x: x*this.tileSize, y: py*this.tileSize, w: this.tileSize, h: this.tileSize, type: 'plat' });
-            }
-
-            // Entities
-            if (x > 8 && rng.next() > 0.85) {
-                if (rng.next() > 0.5) {
-                    // Scholar NPC - Assign text from lesson immediately
-                    const text = sentences[scholarCount % sentences.length] || "Searching for data...";
-                    this.npcs.push({ 
-                        x: x*this.tileSize, y: (height-1)*this.tileSize - 48, w: 32, h: 48, 
-                        text: text,
-                        type: 'scholar' 
-                    });
-                    scholarCount++;
-                } else {
-                    this.enemies.push({
-                        x: x*this.tileSize, y: (height-2)*this.tileSize, w: 32, h: 32,
-                        vx: rng.pick([-2, 2]), vy: 0, type: 'blob'
+                // Surface & Dirt
+                for (let y = height; y < 20; y++) {
+                    const type = y === height ? 'surface' : 'deep';
+                    let deco = 0;
+                    if (type === 'surface' && rng.next() > 0.5) deco = rng.pick([1, 2]); // 1=grass, 2=rock
+                    
+                    this.tiles.push({ 
+                        x: x*this.tileSize, y: y*this.tileSize, 
+                        w: this.tileSize, h: this.tileSize, 
+                        type: type,
+                        deco: deco
                     });
                 }
+
+                // Platforms
+                if (x > 8 && x < (this.levelWidth/this.tileSize)-5 && rng.next() > 0.85) {
+                    const py = height - rng.range(3, 5);
+                    this.tiles.push({ x: x*this.tileSize, y: py*this.tileSize, w: this.tileSize, h: this.tileSize, type: 'plat' });
+                }
+
+                // Entities
+                if (x > 8 && rng.next() > 0.85) {
+                    if (rng.next() > 0.5) {
+                        // Scholar NPC - Assign text from lesson immediately
+                        const text = sentences[scholarCount % sentences.length] || "Searching for data...";
+                        this.npcs.push({ 
+                            x: x*this.tileSize, y: (height-1)*this.tileSize - 48, w: 32, h: 48, 
+                            text: text,
+                            type: 'scholar' 
+                        });
+                        scholarCount++;
+                    } else {
+                        this.enemies.push({
+                            x: x*this.tileSize, y: (height-2)*this.tileSize, w: 32, h: 32,
+                            vx: rng.pick([-2, 2]), vy: 0, type: 'blob'
+                        });
+                    }
+                }
             }
+
+            // Setup End Object
+            const endX = this.levelWidth - 300;
+            this.npcs.push({ x: endX, y: height*this.tileSize - 64, w: 32, h: 64, text: "Data Secured. Launching...", type: 'elder' });
+            this.tiles.push({ x: endX - 50, y: height*this.tileSize, w: 200, h: this.tileSize, type: 'surface' });
+
+            this.shipObj = { 
+                x: 50, 
+                y: (groundY * this.tileSize) - 64 + 10, 
+                w: 64, h: 64 
+            };
+
+            // Reset Player Physics
+            this.player.x = 150; 
+            this.player.y = (groundY * this.tileSize) - 150; // Spawn slightly higher
+            this.player.vx = 0; 
+            this.player.vy = 0; 
+            this.player.health = 100;
+            this.player.ammo = 0; 
+            this.player.state = 'idle';
+            this.player.grounded = false;
+            
+            // Force Camera Snap
+            this.camera.x = this.player.x - (this.game.width / this.zoom / 2);
+            this.camera.y = Math.min(this.player.y - (this.game.height / this.zoom / 2), 300);
+
+            this.updateHUD();
+            this.isLoading = false; // UNBLOCK
+        } catch(e) {
+            console.error("Critical World Gen Error", e);
+            this.isLoading = false; // Force unlock even on error
         }
-
-        // Setup End Object
-        const endX = this.levelWidth - 300;
-        this.npcs.push({ x: endX, y: height*this.tileSize - 64, w: 32, h: 64, text: "Data Secured. Launching...", type: 'elder' });
-        this.tiles.push({ x: endX - 50, y: height*this.tileSize, w: 200, h: this.tileSize, type: 'surface' });
-
-        this.shipObj = { 
-            x: 50, 
-            y: (groundY * this.tileSize) - 64 + 10, 
-            w: 64, h: 64 
-        };
-
-        // Reset Player Physics
-        this.player.x = 150; 
-        this.player.y = (groundY * this.tileSize) - 100;
-        this.player.vx = 0; 
-        this.player.vy = 0; 
-        this.player.health = 100;
-        this.player.ammo = 0; 
-        this.player.state = 'idle';
-        this.player.grounded = false;
-        
-        // Force Camera Snap
-        this.camera.x = this.player.x - (this.game.width / this.zoom / 2);
-        this.camera.y = Math.min(this.player.y - (this.game.height / this.zoom / 2), 300);
-
-        this.updateHUD();
-        this.isLoading = false; // UNBLOCK
     }
 
     update() {
@@ -333,7 +353,9 @@ export class PlatformerEngine {
 
     checkCol(isX) {
         for(let t of this.tiles) {
-            if (Math.abs(t.x - this.player.x) > 100 || Math.abs(t.y - this.player.y) > 100) continue;
+            // FIX: INCREASED CULL RANGE from 100 to 400 to prevent physics freezing/skipping on large screens
+            if (Math.abs(t.x - this.player.x) > 400 || Math.abs(t.y - this.player.y) > 400) continue;
+            
             if (rectIntersect(this.player, t)) {
                 if (isX) {
                     if (this.player.vx > 0) this.player.x = t.x - this.player.w;
@@ -410,7 +432,10 @@ export class PlatformerEngine {
             
             // Atmospheric Glow
             const grad = ctx.createRadialGradient(this.game.width/2, this.game.height/2, 50, this.game.width/2, this.game.height/2, 400);
-            grad.addColorStop(0, this.theme.ground);
+            
+            // Fix for missing theme ground
+            const groundColor = this.theme.ground || '#4ade80';
+            grad.addColorStop(0, groundColor);
             grad.addColorStop(1, 'transparent');
             ctx.fillStyle = grad;
             ctx.fillRect(0,0,this.game.width, this.game.height);
