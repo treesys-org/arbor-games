@@ -59,10 +59,17 @@ export class SpaceEngine {
         this.stickContainer.addEventListener('touchstart', handleStart);
         this.stickContainer.addEventListener('touchmove', handleMove);
         this.stickContainer.addEventListener('touchend', handleEnd);
+        this.stickContainer.addEventListener('touchcancel', handleEnd);
 
         this.btnLand.addEventListener('touchstart', (e) => {
             e.preventDefault();
+            this.input.setKey(' ', true); // Simulate SPACE bar
             if (this.activePlanet) this.game.switchMode('planet');
+        });
+        
+        this.btnLand.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            this.input.setKey(' ', false);
         });
     }
 

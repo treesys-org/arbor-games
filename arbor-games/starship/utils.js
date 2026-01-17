@@ -17,6 +17,15 @@ export class InputManager {
         });
     }
 
+    // New helper for Touch UI to drive input state
+    setKey(key, isActive) {
+        this.keys[key] = isActive;
+        if (key.length === 1) {
+            this.keys[key.toLowerCase()] = isActive;
+            this.keys[key.toUpperCase()] = isActive;
+        }
+    }
+
     consume(k) {
         if (this.keys[k]) {
             this.keys[k] = false;

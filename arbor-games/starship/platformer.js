@@ -45,12 +45,10 @@ export class PlatformerEngine {
         this.levelWidth = 0;
         this.tileSize = 48; 
         
-        // PHYSICS TUNING - Adjusted for tighter control
+        // PHYSICS TUNING - SIMPLE 90s STYLE
         this.gravity = 0.8;
-        this.friction = 0.5; // Much stronger friction to stop sliding immediately
-        this.speed = 1.5;     // Acceleration
-        this.maxSpeed = 8.0;  // Cap to prevent teleporting
-        this.jumpForce = -16;
+        this.moveSpeed = 6.0; // Constant speed, no acceleration
+        this.jumpForce = -15;
         
         this.ui = {
             layer: document.getElementById('ui-planet'),
@@ -76,17 +74,40 @@ export class PlatformerEngine {
     }
 
     bindTouchControls() {
+        // We use the new InputManager.setKey method to let touch buttons drive the keyboard state directly.
+        // This fixes the issue where buttons wouldn't "hold" (like holding right to run).
         const bind = (id, key) => {
             const el = document.getElementById(id);
             if(!el) return;
-            el.addEventListener('touchstart', (e) => { e.preventDefault(); this.game.input.keys[key] = true; el.style.opacity = '1'; });
-            el.addEventListener('touchend', (e) => { e.preventDefault(); this.game.input.keys[key] = false; el.style.opacity = '0.6'; });
+            
+            const handleStart = (e) => {
+                e.preventDefault();
+                this.game.input.setKey(key, true);
+                el.style.opacity = '1';
+                el.style.transform = 'scale(0.95)';
+            };
+
+            const handleEnd = (e) => {
+                e.preventDefault();
+                this.game.input.setKey(key, false);
+                el.style.opacity = '0.6';
+                el.style.transform = 'scale(1)';
+            };
+
+            el.addEventListener('touchstart', handleStart);
+            el.addEventListener('touchend', handleEnd);
+            el.addEventListener('touchcancel', handleEnd);
+            // Mouse fallbacks for testing on desktop without touch
+            el.addEventListener('mousedown', handleStart);
+            el.addEventListener('mouseup', handleEnd);
+            el.addEventListener('mouseleave', handleEnd);
         };
+
         bind('btn-left', 'ArrowLeft');
         bind('btn-right', 'ArrowRight');
         bind('btn-jump', 'ArrowUp'); 
         bind('btn-shoot', 'z');
-        bind('btn-interact', 'ArrowUp'); 
+        bind('btn-interact', 'ArrowUp'); // Context sensitive
     }
 
     loadLevel(planet) {
@@ -290,6 +311,7 @@ export class PlatformerEngine {
 
         // DIALOGUE HANDLING
         if (this.activeDialogue) {
+            // Allow dismissing dialogue with Jump or Interact buttons
             if (this.game.input.consume('ArrowUp') || this.game.input.consume(' ') || this.game.input.consume('Enter')) {
                 this.activeDialogue = null;
                 this.ui.dialogueBox.style.display = 'none';
@@ -304,27 +326,25 @@ export class PlatformerEngine {
             return; 
         }
 
-        // --- PLAYER PHYSICS MOVEMENT REVISED ---
+        // --- PLAYER PHYSICS: SIMPLE 90s MOVEMENT ---
+        // 1. Reset X Velocity every frame. No inertia.
+        this.player.vx = 0; 
+
+        // Touch buttons set keys, so this works for both touch and keyboard
         const pressingLeft = this.game.input.keys['ArrowLeft'];
         const pressingRight = this.game.input.keys['ArrowRight'];
 
         if (pressingLeft) {
-            this.player.vx -= this.speed;
+            this.player.vx = -this.moveSpeed;
             this.player.facing = -1;
             this.player.state = 'run';
         } else if (pressingRight) {
-            this.player.vx += this.speed;
+            this.player.vx = this.moveSpeed;
             this.player.facing = 1;
             this.player.state = 'run';
         } else {
             this.player.state = 'idle';
-            // SNAP TO ZERO: Remove slippery feeling
-            this.player.vx *= this.friction; 
-            if (Math.abs(this.player.vx) < 0.5) this.player.vx = 0;
         }
-
-        // Clamp Speed (Prevent Teleporting)
-        this.player.vx = Math.max(-this.maxSpeed, Math.min(this.maxSpeed, this.player.vx));
 
         // Jump
         if ((this.game.input.keys['ArrowUp'] || this.game.input.keys[' ']) && this.player.grounded) {
@@ -333,20 +353,22 @@ export class PlatformerEngine {
             this.game.spawnParticle(this.player.x + 16, this.player.y + 48, '#fff', 3);
         }
 
-        // Apply Physics (Y Axis only here, X handled with custom friction above)
+        // Apply Gravity
         this.player.vy += this.gravity; 
         
         // Terminal Velocity for falling
         if(this.player.vy > 18) this.player.vy = 18;
 
-        // X Movement & Collision
-        this.player.x += this.player.vx;
-        this.checkCol(true);
+        // --- COLLISION RESOLUTION ---
         
-        // Y Movement & Collision
+        // X Movement
+        this.player.x += this.player.vx;
+        this.checkCol(true); // Resolve X
+        
+        // Y Movement
         this.player.y += this.player.vy;
-        this.player.grounded = false;
-        this.checkCol(false);
+        this.player.grounded = false; // Assume falling until proven grounded
+        this.checkCol(false); // Resolve Y
 
         if (!this.player.grounded) this.player.state = 'jump';
         this.player.animFrame++;
@@ -449,7 +471,9 @@ export class PlatformerEngine {
 
         this.ui.btnInteract.style.display = nearby ? 'flex' : 'none';
         
-        if (nearby && (this.game.input.consume('ArrowUp'))) {
+        // Touch Interaction: Tapping the dedicated interact button on mobile
+        // OR pressing ArrowUp/Space on desktop
+        if (nearby && (this.game.input.consume('ArrowUp') || this.game.input.consume('Enter'))) {
             if (isShip) {
                 // CONFIRMATION FOR LAUNCH
                 this.pendingLaunch = true;
