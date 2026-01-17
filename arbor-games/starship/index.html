@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Starship Learner: Odyssey</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -15,116 +15,198 @@
         .crt::before {
             content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            z-index: 5; background-size: 100% 2px, 3px 100%; pointer-events: none;
+            z-index: 5; background-size: 100% 2px, 3px 100%; pointer-events: none; opacity: 0.5;
         }
+        .crt::after {
+            content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
+            background: rgba(18, 16, 16, 0.1); opacity: 0; z-index: 5; pointer-events: none;
+            animation: flicker 0.15s infinite;
+        }
+        @keyframes flicker { 0% { opacity: 0.02; } 50% { opacity: 0.05; } 100% { opacity: 0.02; } }
 
         /* UI Layers */
         .ui-layer { position: absolute; pointer-events: none; z-index: 10; width: 100%; height: 100%; top:0; left:0; }
-        .hud-panel { position: absolute; background: rgba(0, 10, 20, 0.8); border: 1px solid #0ea5e9; padding: 10px; border-radius: 4px; backdrop-filter: blur(4px); }
+        
+        .hud-panel { 
+            position: absolute; 
+            background: rgba(2, 6, 23, 0.8); 
+            border: 1px solid #0ea5e9; 
+            padding: 10px; 
+            border-radius: 8px; 
+            backdrop-filter: blur(4px); 
+            pointer-events: auto; 
+            box-shadow: 0 0 15px rgba(14, 165, 233, 0.2);
+        }
 
         /* Dialogue Box */
         #dialogue-box {
-            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            width: 90%; max-width: 800px; min-height: 120px;
-            background: rgba(0,0,0,0.95); border: 2px solid #22c55e;
-            box-shadow: 0 0 20px rgba(34, 197, 94, 0.2);
+            position: absolute; top: 10%; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 600px; min-height: 120px;
+            background: rgba(2, 6, 23, 0.95); 
+            border: 2px solid #22c55e;
+            box-shadow: 0 0 30px rgba(34, 197, 94, 0.2), inset 0 0 20px rgba(34, 197, 94, 0.1);
             padding: 20px; display: none; z-index: 50; pointer-events: auto;
+            border-radius: 4px;
         }
-        #dialogue-speaker { color: #22c55e; font-family: 'Orbitron', sans-serif; font-weight: 900; margin-bottom: 8px; text-transform: uppercase; }
-        #dialogue-text { font-size: 1.1rem; line-height: 1.4; color: #fff; }
-        .blinking-cursor::after { content: '█'; animation: blink 1s infinite; margin-left: 5px; color: #22c55e; }
+        #dialogue-speaker { color: #22c55e; font-family: 'Orbitron', sans-serif; font-weight: 900; margin-bottom: 8px; text-transform: uppercase; font-size: 1rem; border-bottom: 1px solid #22c55e; display: inline-block; padding-bottom: 4px; }
+        #dialogue-text { font-size: 1.1rem; line-height: 1.4; color: #fff; text-shadow: 0 0 5px rgba(255,255,255,0.5); }
         
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-
         /* Platformer HUD */
         #health-bar {
-            width: 200px; height: 16px; background: #333; border: 2px solid #fff;
+            width: 200px; height: 16px; background: #0f172a; border: 2px solid #fff;
             position: absolute; top: 20px; left: 20px; transform: skewX(-20deg);
+            box-shadow: 0 0 10px rgba(255,255,255,0.3);
+            overflow: hidden;
         }
-        #health-fill { width: 100%; height: 100%; background: #ef4444; transition: width 0.2s; }
-        #suit-energy { position: absolute; top: 40px; left: 20px; color: #0ea5e9; font-size: 0.8rem; }
-        
-        /* Ammo Display */
+        #health-fill { width: 100%; height: 100%; background: linear-gradient(90deg, #ef4444, #f87171); transition: width 0.2s; }
+        #suit-energy { position: absolute; top: 40px; left: 20px; color: #0ea5e9; font-size: 0.8rem; letter-spacing: 2px; }
         #ammo-display {
-            position: absolute; top: 70px; left: 20px;
+            position: absolute; top: 60px; left: 20px;
             font-size: 1.2rem; color: #facc15; font-weight: bold;
-            text-shadow: 0 0 5px rgba(250, 204, 21, 0.5);
+            text-shadow: 0 0 10px rgba(250, 204, 21, 0.8);
+            font-family: 'Orbitron';
         }
 
         /* Screens */
         .full-screen { position: absolute; inset: 0; background: #000; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; }
         .hidden { display: none !important; }
+
+        /* --- MOBILE CONTROLS --- */
+        .touch-zone { position: absolute; z-index: 40; pointer-events: auto; opacity: 0.6; touch-action: none; transition: opacity 0.2s; }
+        .touch-zone:active { opacity: 1; }
         
-        #prologue-screen p { max-width: 600px; text-align: center; font-size: 1.2rem; color: #94a3b8; margin-bottom: 2rem; }
+        /* Joystick (Space) */
+        #stick-container { 
+            bottom: 40px; left: 40px; width: 120px; height: 120px; 
+            background: rgba(14, 165, 233, 0.1); border-radius: 50%; border: 2px solid rgba(14, 165, 233, 0.3);
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 20px rgba(14, 165, 233, 0.2);
+        }
+        #stick-knob { width: 50px; height: 50px; background: rgba(14, 165, 233, 0.8); border-radius: 50%; box-shadow: 0 0 15px #0ea5e9; transform: translate(0,0); }
+        
+        #btn-land {
+            bottom: 50px; right: 40px; width: 100px; height: 100px;
+            background: rgba(34, 197, 94, 0.2); border: 2px solid #22c55e; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; color: #22c55e; font-weight: bold;
+            font-family: 'Orbitron'; font-size: 1.2rem; display: none;
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+            animation: pulse 2s infinite;
+        }
+
+        /* D-Pad (Planet) */
+        #dpad-container { bottom: 30px; left: 30px; width: 180px; height: 100px; display: flex; gap: 20px; align-items: center; }
+        .d-btn { 
+            width: 80px; height: 80px; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); 
+            clip-path: polygon(20% 0%, 80% 0%, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0% 80%, 0% 20%);
+            display: flex; align-items: center; justify-content: center; font-size: 2rem;
+            backdrop-filter: blur(4px);
+        }
+        
+        /* Action Buttons (Planet) */
+        #action-container { bottom: 30px; right: 30px; display: flex; gap: 20px; align-items: flex-end; }
+        .act-btn {
+            width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-family: 'Orbitron'; border: 2px solid rgba(255,255,255,0.5);
+            box-shadow: 0 0 15px rgba(255,255,255,0.2);
+            font-size: 1.5rem;
+            background: rgba(0,0,0,0.5);
+        }
+        #btn-jump { border-color: #0ea5e9; color: #0ea5e9; margin-bottom: 30px; }
+        #btn-shoot { border-color: #ef4444; color: #ef4444; }
+        
+        #btn-interact {
+            position: absolute; bottom: 150px; right: 40px; width: 70px; height: 70px;
+            background: rgba(250, 204, 21, 0.2); border-radius: 50%; color: #facc15; font-weight: bold;
+            display: none; align-items: center; justify-content: center; border: 2px solid #facc15;
+            box-shadow: 0 0 20px rgba(250, 204, 21, 0.5);
+            font-size: 1rem;
+        }
+
+        @keyframes pulse { 0% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(1); opacity: 0.8; } }
+
+        @media (min-width: 1024px) {
+            .touch-zone { display: none !important; } 
+        }
     </style>
 </head>
 <body class="crt">
 
-    <!-- CANVAS -->
     <canvas id="game-canvas"></canvas>
 
     <!-- LOADING -->
     <div id="loading-screen" class="full-screen">
-        <div class="text-4xl mb-4 text-cyan-400 animate-pulse font-bold font-mono">SYSTEM BOOT</div>
-        <div id="loading-status" class="text-xs text-slate-500">Connecting to Neural Link...</div>
+        <div class="text-6xl mb-6 text-cyan-400 animate-pulse font-black font-[Orbitron] tracking-widest">SYSTEM BOOT</div>
+        <div id="loading-status" class="text-sm font-mono text-cyan-800 border border-cyan-900 px-4 py-2">Establishing Neural Link...</div>
     </div>
 
     <!-- PROLOGUE -->
-    <div id="prologue-screen" class="full-screen hidden">
-        <h1 class="text-4xl md:text-6xl font-black text-cyan-500 mb-8 font-[Orbitron] tracking-widest">YEAR 3042</h1>
-        <div id="prologue-text" class="space-y-4 font-mono">
-            <p>The Great Data Collapse destroyed all Knowledge Archives.</p>
-            <p>Humanity is reverting to the Dark Ages.</p>
-            <p>You are a <span class="text-green-400">Knowledge Keeper</span>.</p>
-            <p>Use your <b>Knowledge Blaster [Z]</b>. Reload it by learning from <span class="text-yellow-400">Martians</span>.</p>
+    <div id="prologue-screen" class="full-screen hidden p-8 text-center bg-slate-950">
+        <h1 class="text-5xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-b from-cyan-400 to-blue-600 mb-6 font-[Orbitron] tracking-widest drop-shadow-[0_0_15px_rgba(34,211,238,0.5)]">STARSHIP<br>LEARNER</h1>
+        <div id="prologue-text" class="space-y-4 font-mono max-w-2xl text-slate-300 mb-12 text-lg">
+            <p>Knowledge archives have been scattered across the galaxy.</p>
+            <p>Pilot your ship. Land on planets. Retrieve the data.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-left bg-slate-900/80 p-6 border border-cyan-900 shadow-[0_0_30px_rgba(8,145,178,0.2)] mt-8">
+                <div>
+                    <span class="text-cyan-400 font-bold font-[Orbitron] border-b border-cyan-800 block mb-2">FLIGHT CONTROLS</span>
+                    <span class="text-sm text-slate-400">WASD / Stick to Thrust<br>SPACE to Land</span>
+                </div>
+                <div>
+                    <span class="text-green-400 font-bold font-[Orbitron] border-b border-green-800 block mb-2">SURFACE CONTROLS</span>
+                    <span class="text-sm text-slate-400">Arrows to Move<br>UP to Jump / Interact<br>Z to Shoot</span>
+                </div>
+            </div>
         </div>
-        <button id="btn-start" class="mt-8 border-2 border-cyan-500 text-cyan-500 px-8 py-3 hover:bg-cyan-500 hover:text-black font-bold uppercase tracking-widest transition-all">
-            INITIALIZE SUIT
+        <button id="btn-start" class="relative overflow-hidden group border-2 border-cyan-500 text-cyan-500 px-12 py-5 font-bold text-2xl uppercase tracking-[0.2em] font-[Orbitron] transition-all hover:text-black hover:shadow-[0_0_30px_#0ea5e9]">
+            <span class="absolute inset-0 w-full h-full bg-cyan-500 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-300 ease-out"></span>
+            <span class="relative z-10">INITIALIZE</span>
         </button>
     </div>
 
-    <!-- UI: SPACE MODE -->
+    <!-- UI: SPACE -->
     <div id="ui-space" class="ui-layer hidden">
-        <div class="hud-panel bottom-4 left-4">
-            <div class="text-xs text-slate-400">THRUSTERS</div>
-            <div id="hud-vel" class="text-xl font-bold text-cyan-400">0 m/s</div>
-        </div>
-        <div class="hud-panel top-4 right-4 text-right">
-            <div class="text-xs text-slate-400">SYSTEM</div>
-            <div id="sector-name" class="text-lg font-bold text-white">UNKNOWN</div>
+        <div class="hud-panel top-6 left-6 w-48">
+            <div class="text-[10px] text-slate-400 tracking-widest">VELOCITY</div>
+            <div id="hud-vel" class="text-3xl font-bold text-cyan-400 font-[Orbitron]">0 KM/S</div>
+            <div class="h-1 w-full bg-slate-800 mt-2"><div class="h-full bg-cyan-500 w-1/2"></div></div>
         </div>
         
-        <div id="landing-prompt" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center hidden">
-            <div class="bg-black/80 border-2 border-green-500 p-4 rounded-lg backdrop-blur">
-                <div class="text-green-500 font-bold uppercase text-xs mb-1">ORBIT ESTABLISHED</div>
-                <h2 id="target-planet" class="text-2xl font-[Orbitron] text-white mb-2">PLANET NAME</h2>
-                <div class="text-sm bg-green-600 text-black px-2 py-1 font-bold animate-pulse">PRESS [SPACE] TO LAND</div>
-            </div>
+        <!-- Mobile Space Controls -->
+        <div id="stick-container" class="touch-zone">
+            <div id="stick-knob"></div>
         </div>
+        <div id="btn-land" class="touch-zone">LAND</div>
     </div>
 
-    <!-- UI: PLANET MODE -->
+    <!-- UI: PLANET -->
     <div id="ui-planet" class="ui-layer hidden">
         <div id="health-bar"><div id="health-fill"></div></div>
         <div id="suit-energy">SUIT INTEGRITY</div>
-        <div id="ammo-display">DATA AMMO: 0</div>
+        <div id="ammo-display">AMMO: 0</div>
         
-        <div class="hud-panel top-4 right-4">
-            <div class="text-xs text-slate-400">MISSION GOAL</div>
-            <div class="text-sm text-yellow-400">Find the Elder Scholar</div>
-        </div>
-
         <div id="dialogue-box">
             <div id="dialogue-speaker">MARCIANO</div>
-            <div id="dialogue-text" class="blinking-cursor">...</div>
-            <div class="text-right text-[10px] text-slate-500 mt-2">[SPACE] NEXT</div>
+            <div id="dialogue-text">...</div>
+            <div class="text-right text-[10px] text-green-500 mt-4 animate-pulse">TAP TO CONTINUE ▶</div>
         </div>
-        
-        <div id="death-screen" class="absolute inset-0 bg-red-900/40 flex items-center justify-center hidden">
-            <div class="text-center">
-                <h2 class="text-5xl font-black text-white mb-2 font-[Orbitron]">MIA</h2>
-                <p class="text-red-200 mb-4">SUIT CRITICAL. EVACUATING.</p>
-                <div class="text-sm bg-white text-black px-4 py-2 font-bold">[R] RESPAWN</div>
+
+        <div id="btn-interact" class="touch-zone">TALK</div>
+
+        <!-- Mobile Planet Controls -->
+        <div id="dpad-container" class="touch-zone">
+            <div id="btn-left" class="d-btn">←</div>
+            <div id="btn-right" class="d-btn">→</div>
+        </div>
+        <div id="action-container" class="touch-zone">
+            <div id="btn-shoot" class="act-btn">Z</div>
+            <div id="btn-jump" class="act-btn">A</div>
+        </div>
+
+        <!-- Death Screen -->
+        <div id="death-screen" class="absolute inset-0 bg-red-950/90 flex items-center justify-center hidden pointer-events-auto backdrop-blur-sm">
+            <div class="text-center border-4 border-red-600 p-10 bg-black">
+                <h2 class="text-5xl md:text-7xl font-black text-red-500 mb-4 font-[Orbitron] tracking-tighter">CRITICAL<br>FAILURE</h2>
+                <p class="text-red-200 mb-10 font-mono tracking-widest">SUIT INTEGRITY LOST</p>
+                <button id="btn-respawn" class="bg-white hover:bg-red-500 hover:text-white text-black px-8 py-4 font-bold border-4 border-black shadow-[6px_6px_0_#000] font-[Orbitron] text-xl transition-transform active:scale-95">REBOOT SYSTEM</button>
             </div>
         </div>
     </div>

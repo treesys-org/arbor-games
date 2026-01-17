@@ -9,22 +9,31 @@ export class PlatformerEngine {
     constructor(game) {
         this.game = game;
         this.player = { 
-            x: 100, y: 0, w: 24, h: 32, 
+            x: 100, y: 0, w: 32, h: 48, 
             vx: 0, vy: 0, 
             grounded: false, 
             health: 100, maxHealth: 100,
             ammo: 0,
-            facing: 1 // 1 = right, -1 = left
+            facing: 1,
+            animFrame: 0,
+            state: 'idle' 
         };
         this.camera = { x: 0, y: 0 };
+        this.zoom = 2.0; 
+        
         this.tiles = [];
         this.npcs = [];
         this.enemies = [];
         this.projectiles = [];
+        this.shipObj = null; 
+
         this.levelWidth = 0;
-        this.tileSize = 32;
-        this.gravity = 0.5;
-        this.lessonData = null;
+        this.tileSize = 48; 
+        this.gravity = 0.8;
+        this.friction = 0.85;
+        this.speed = 1.5;
+        this.jumpForce = -18;
+        
         this.ui = {
             layer: document.getElementById('ui-planet'),
             dialogueBox: document.getElementById('dialogue-box'),
@@ -32,220 +41,233 @@ export class PlatformerEngine {
             dialogueSpeaker: document.getElementById('dialogue-speaker'),
             healthFill: document.getElementById('health-fill'),
             ammoDisplay: document.getElementById('ammo-display'),
-            deathScreen: document.getElementById('death-screen')
+            deathScreen: document.getElementById('death-screen'),
+            btnInteract: document.getElementById('btn-interact')
         };
         
-        this.sprites = {
-            hero: Sprites.astronaut('#fff'),
-            martian: Sprites.alien('#22c55e'),
-            elder: Sprites.alien('#facc15'),
-            enemy: Sprites.enemy()
-        };
+        this.bindTouchControls();
 
         this.dialogueQueue = [];
         this.activeDialogue = null;
+        this.interactingNPC = null;
     }
 
-    // Generate Level based on planet data
+    bindTouchControls() {
+        const bind = (id, key) => {
+            const el = document.getElementById(id);
+            if(!el) return;
+            el.addEventListener('touchstart', (e) => { e.preventDefault(); this.game.input.keys[key] = true; el.style.opacity = '1'; });
+            el.addEventListener('touchend', (e) => { e.preventDefault(); this.game.input.keys[key] = false; el.style.opacity = '0.6'; });
+        };
+        bind('btn-left', 'ArrowLeft');
+        bind('btn-right', 'ArrowRight');
+        bind('btn-jump', 'ArrowUp'); 
+        bind('btn-shoot', 'z');
+        bind('btn-interact', 'ArrowUp'); 
+    }
+
     async loadLevel(planet) {
         this.ui.layer.classList.remove('hidden');
         this.ui.deathScreen.classList.add('hidden');
         this.planet = planet;
         
-        // Reset Player State
-        this.player.x = 100; this.player.y = 0; 
-        this.player.vx = 0; this.player.vy = 0; 
-        this.player.health = 100;
-        this.player.ammo = 0; 
-        this.projectiles = [];
-        this.updateHUD();
-        
-        // Fetch lesson text
         try {
             const data = await window.Arbor.content.getAt(planet.data.index);
-            // Split text into chunks for NPCs
             const sentences = data.text.replace(/<[^>]*>/g, '').split('. ').filter(s => s.length > 10);
             this.lessonData = { title: data.title, chunks: sentences };
         } catch(e) {
             this.lessonData = { title: "Unknown", chunks: ["Data corrupted.", "Survive."] };
         }
 
-        // Generate Terrain
         const rng = new SeededRandom(planet.data.title);
         this.tiles = [];
         this.npcs = [];
         this.enemies = [];
-        this.levelWidth = 3000;
+        this.levelWidth = 4000;
         
-        const groundY = 15; // In tiles
+        const groundY = 12; 
         let height = groundY;
         
-        for (let x = 0; x < this.levelWidth / this.tileSize; x++) {
-            // Perlin-ish height
-            if(rng.next() > 0.7) height += rng.pick([-1, 0, 1]);
-            height = Math.max(10, Math.min(20, height)); // Clamp
+        // Colors from planet
+        this.theme = {
+            ground: planet.color,
+            sky: '#0f172a',
+            bgMount: '#1e293b'
+        };
 
-            // Floor
-            for (let y = height; y < 25; y++) {
-                this.tiles.push({ x: x*this.tileSize, y: y*this.tileSize, w: this.tileSize, h: this.tileSize, type: 'ground' });
+        // Generate Tiles
+        for (let x = 0; x < this.levelWidth / this.tileSize; x++) {
+            if(rng.next() > 0.6 && x > 5) height += rng.pick([-1, 0, 1]); 
+            height = Math.max(8, Math.min(16, height));
+
+            // Surface & Dirt
+            for (let y = height; y < 20; y++) {
+                const type = y === height ? 'surface' : 'deep';
+                // Add grass decoration probability
+                let deco = 0;
+                if (type === 'surface' && rng.next() > 0.5) deco = rng.pick([1, 2]); // 1=grass, 2=rock
+                
+                this.tiles.push({ 
+                    x: x*this.tileSize, y: y*this.tileSize, 
+                    w: this.tileSize, h: this.tileSize, 
+                    type: type,
+                    deco: deco
+                });
             }
 
             // Platforms
-            if (x > 5 && x < (this.levelWidth/this.tileSize)-5 && rng.next() > 0.8) {
+            if (x > 8 && x < (this.levelWidth/this.tileSize)-5 && rng.next() > 0.85) {
                 const py = height - rng.range(3, 5);
                 this.tiles.push({ x: x*this.tileSize, y: py*this.tileSize, w: this.tileSize, h: this.tileSize, type: 'plat' });
             }
 
-            // Populate
-            if (x > 10 && rng.next() > 0.9) {
-                // Determine NPC vs Enemy
-                if (rng.next() > 0.4) {
+            // Entities
+            if (x > 8 && rng.next() > 0.85) {
+                if (rng.next() > 0.5) {
                     const chunk = this.lessonData.chunks[this.npcs.length % this.lessonData.chunks.length] || "Beware the Swarm.";
                     this.npcs.push({ 
-                        x: x*this.tileSize, y: (height-1)*this.tileSize - 24, w: 24, h: 24, 
+                        x: x*this.tileSize, y: (height-1)*this.tileSize - 48, w: 32, h: 48, 
                         text: chunk, 
                         type: 'scholar' 
                     });
                 } else {
                     this.enemies.push({
-                        x: x*this.tileSize, y: (height-3)*this.tileSize, w: 24, h: 24,
+                        x: x*this.tileSize, y: (height-2)*this.tileSize, w: 32, h: 32,
                         vx: rng.pick([-2, 2]), vy: 0, type: 'blob'
                     });
                 }
             }
         }
 
-        // Elder at end
-        this.npcs.push({
-            x: this.levelWidth - 200, y: 0, w: 24, h: 24, 
-            text: "Knowledge Acquired. Establishing Uplink...",
-            type: 'elder'
-        });
-        // Ensure floor under elder
-        const endX = Math.floor((this.levelWidth - 200)/this.tileSize);
-        this.tiles.push({ x: endX*this.tileSize, y: (height)*this.tileSize, w: this.tileSize*3, h: this.tileSize, type: 'ground' });
-        this.npcs[this.npcs.length-1].y = (height-1)*this.tileSize - 24;
+        const startHeight = groundY; 
+        this.shipObj = { 
+            x: 50, 
+            y: (startHeight * this.tileSize) - 64 + 10, 
+            w: 64, h: 64 
+        };
+
+        this.player.x = 150; 
+        this.player.y = (startHeight * this.tileSize) - 100;
+        this.player.vx = 0; this.player.vy = 0; 
+        this.player.health = 100;
+        this.player.ammo = 0; 
+        this.projectiles = [];
+        this.updateHUD();
+
+        const endX = this.levelWidth - 300;
+        this.npcs.push({ x: endX, y: 0, w: 32, h: 64, text: "Data Secured. Launching...", type: 'elder' });
+        this.tiles.push({ x: endX - 50, y: height*this.tileSize, w: 200, h: this.tileSize, type: 'surface' });
+        this.npcs[this.npcs.length-1].y = height*this.tileSize - 64;
     }
 
     update() {
-        if (this.player.health <= 0) {
-            if (this.game.input.consume('r')) this.loadLevel(this.planet);
-            return;
-        }
+        if (this.player.health <= 0) return;
 
-        // Dialogue Handling
         if (this.activeDialogue) {
-            if (this.game.input.consume(' ')) {
+            if (this.game.input.consume('ArrowUp') || this.game.input.consume(' ') || this.game.input.consume('Enter')) {
                 this.activeDialogue = null;
                 this.ui.dialogueBox.style.display = 'none';
                 
-                // If it was Elder, level complete
                 if (this.interactingNPC && this.interactingNPC.type === 'elder') {
-                    this.planet.visited = true;
                     this.game.switchMode('space');
                     if(window.Arbor && window.Arbor.game) window.Arbor.game.addXP(100);
                 }
             }
-            return; // Pause game during dialogue
+            return; 
         }
 
-        // Input & Physics
-        if (this.game.input.keys['ArrowLeft'] || this.game.input.keys['a']) {
-            this.player.vx -= 1;
+        if (this.game.input.keys['ArrowLeft']) {
+            this.player.vx -= this.speed;
             this.player.facing = -1;
+            this.player.state = 'run';
+            if (this.player.grounded && Math.random() > 0.8) this.game.spawnParticle(this.player.x + 16, this.player.y + 48, this.theme.ground, 1, 3);
         }
-        if (this.game.input.keys['ArrowRight'] || this.game.input.keys['d']) {
-            this.player.vx += 1;
+        else if (this.game.input.keys['ArrowRight']) {
+            this.player.vx += this.speed;
             this.player.facing = 1;
+            this.player.state = 'run';
+            if (this.player.grounded && Math.random() > 0.8) this.game.spawnParticle(this.player.x + 16, this.player.y + 48, this.theme.ground, 1, 3);
+        } else {
+            this.player.state = 'idle';
         }
-        if ((this.game.input.keys['ArrowUp'] || this.game.input.keys['w'] || this.game.input.keys[' ']) && this.player.grounded) {
-            this.player.vy = -12;
+
+        if ((this.game.input.keys['ArrowUp'] || this.game.input.keys[' ']) && this.player.grounded) {
+            this.player.vy = this.jumpForce;
             this.player.grounded = false;
+            this.game.spawnParticle(this.player.x + 16, this.player.y + 48, '#fff', 3);
         }
 
-        // Shooting
-        if (this.game.input.consume('z')) {
-            this.shoot();
-        }
-
+        this.player.vx *= this.friction;
         this.player.vy += this.gravity;
-        this.player.vx *= 0.8; // Friction
+        
+        if(this.player.vy > 15) this.player.vy = 15;
 
-        // Move X
         this.player.x += this.player.vx;
         this.checkCol(true);
         
-        // Move Y
         this.player.y += this.player.vy;
         this.player.grounded = false;
         this.checkCol(false);
 
-        // Bounds
-        if (this.player.y > 1000) this.damage(20); 
-        if (this.player.x < 0) this.player.x = 0;
+        if (!this.player.grounded) this.player.state = 'jump';
+        this.player.animFrame++;
 
-        // Camera
-        this.camera.x += (this.player.x - this.game.width/3 - this.camera.x) * 0.1;
-        this.camera.y += (this.player.y - this.game.height/2 - this.camera.y) * 0.1;
+        if (this.game.input.consume('z')) this.shoot();
 
-        // Update Projectiles
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const p = this.projectiles[i];
             p.x += p.vx;
             p.life--;
-            if (p.life <= 0) {
-                this.projectiles.splice(i, 1);
-                continue;
-            }
+            if (p.life <= 0) { this.projectiles.splice(i, 1); continue; }
             
-            // Projectile vs Enemies
             for (let j = this.enemies.length - 1; j >= 0; j--) {
                 const e = this.enemies[j];
                 if (rectIntersect({x: p.x, y: p.y, w: p.w, h: p.h}, e)) {
-                    // Kill Enemy
                     this.enemies.splice(j, 1);
                     this.projectiles.splice(i, 1);
-                    this.game.spawnParticle(e.x, e.y, '#ef4444');
-                    this.game.spawnParticle(e.x, e.y, '#fff');
+                    this.game.spawnParticle(e.x, e.y, '#ef4444', 4, 6);
                     break;
                 }
             }
         }
 
-        // Enemies
-        this.enemies.forEach(e => {
-            e.x += e.vx;
-            // Simple bounce AI
-            if(Math.random()<0.01) e.vx *= -1;
-            
-            // Collision with Player
-            if (rectIntersect(this.player, e)) {
-                this.damage(10);
-                e.x += (e.x > this.player.x ? 20 : -20); // Knockback enemy
-                this.player.vx += (e.x > this.player.x ? -10 : 10); // Knockback player
-            }
-        });
+        const targetCamX = this.player.x - (this.game.width / this.zoom / 2);
+        const targetCamY = this.player.y - (this.game.height / this.zoom / 2);
+        
+        // Y Clamping (Don't look underground)
+        const clampedTargetY = Math.min(targetCamY, 300);
 
-        // NPCs
+        this.camera.x += (targetCamX - this.camera.x) * 0.1;
+        this.camera.y += (clampedTargetY - this.camera.y) * 0.1;
+
         let nearby = null;
+        let isShip = false;
+
         this.npcs.forEach(n => {
-            if (Math.abs(this.player.x - n.x) < 50 && Math.abs(this.player.y - n.y) < 50) {
-                nearby = n;
-            }
+            if (Math.abs(this.player.x - n.x) < 60 && Math.abs(this.player.y - n.y) < 60) nearby = n;
         });
 
-        if (nearby && this.game.input.consume('ArrowUp')) {
-            this.interactingNPC = nearby;
-            
-            // Reload Ammo if Scholar
-            if (nearby.type === 'scholar') {
-                this.player.ammo += 5;
-                this.updateHUD();
-                this.game.spawnParticle(this.player.x, this.player.y, '#facc15');
-            }
-
-            this.showDialogue(nearby.type.toUpperCase(), nearby.text);
+        if (this.shipObj && Math.abs(this.player.x - this.shipObj.x) < 80 && Math.abs(this.player.y - this.shipObj.y) < 80) {
+            nearby = { type: 'ship' };
+            isShip = true;
         }
+
+        this.ui.btnInteract.style.display = nearby ? 'flex' : 'none';
+        
+        if (nearby && (this.game.input.consume('ArrowUp'))) {
+            if (isShip) {
+                this.game.switchMode('space');
+            } else {
+                this.interactingNPC = nearby;
+                if (nearby.type === 'scholar') {
+                    this.player.ammo += 5;
+                    this.updateHUD();
+                }
+                this.showDialogue(nearby.type.toUpperCase(), nearby.text);
+            }
+        }
+        
+        if (this.player.y > 2000) this.damage(100);
     }
 
     shoot() {
@@ -253,49 +275,42 @@ export class PlatformerEngine {
             this.player.ammo--;
             this.updateHUD();
             this.projectiles.push({
-                x: this.player.x + (this.player.facing === 1 ? 24 : -10),
-                y: this.player.y + 16,
-                w: 10, h: 4,
-                vx: this.player.facing * 12,
+                x: this.player.x + (this.player.facing === 1 ? 32 : -10),
+                y: this.player.y + 24,
+                w: 12, h: 6,
+                vx: this.player.facing * 15,
                 life: 60,
                 color: '#facc15'
             });
-            // Recoil
-            this.player.vx -= this.player.facing * 2;
-        } else {
-            // Dry fire
-            this.game.spawnParticle(this.player.x, this.player.y, '#555');
+            this.player.vx -= this.player.facing * 3; 
         }
     }
 
     damage(amount) {
         this.player.health -= amount;
         this.updateHUD();
-        this.game.shake(10);
-        if (this.player.health <= 0) {
-            this.ui.deathScreen.classList.remove('hidden');
-        }
+        this.game.shake(20);
+        if (this.player.health <= 0) this.ui.deathScreen.classList.remove('hidden');
     }
 
     updateHUD() {
-        this.ui.healthFill.style.width = `${this.player.health}%`;
-        this.ui.ammoDisplay.innerText = `DATA AMMO: ${this.player.ammo}`;
+        this.ui.healthFill.style.width = `${Math.max(0, this.player.health)}%`;
+        this.ui.ammoDisplay.innerText = `AMMO: ${this.player.ammo}`;
     }
 
     checkCol(isX) {
         for(let t of this.tiles) {
-            if (Math.abs(t.x - this.player.x) > 50 || Math.abs(t.y - this.player.y) > 50) continue;
-
+            if (Math.abs(t.x - this.player.x) > 100 || Math.abs(t.y - this.player.y) > 100) continue;
             if (rectIntersect(this.player, t)) {
                 if (isX) {
                     if (this.player.vx > 0) this.player.x = t.x - this.player.w;
                     else if (this.player.vx < 0) this.player.x = t.x + t.w;
                     this.player.vx = 0;
                 } else {
-                    if (this.player.vy > 0) { // Landing
+                    if (this.player.vy > 0) { 
                         this.player.y = t.y - this.player.h;
                         this.player.grounded = true;
-                    } else if (this.player.vy < 0) { // Hitting head
+                    } else if (this.player.vy < 0) {
                         this.player.y = t.y + t.h;
                     }
                     this.player.vy = 0;
@@ -309,57 +324,134 @@ export class PlatformerEngine {
         this.ui.dialogueBox.style.display = 'block';
         this.ui.dialogueSpeaker.innerText = speaker;
         this.ui.dialogueText.innerText = text;
-        
-        if (speaker === 'SCHOLAR') {
-            this.ui.dialogueText.innerHTML += " <br><span style='color:#facc15'>[+5 AMMO]</span>";
-        }
     }
 
-    draw(ctx) {
+    drawParallax(ctx) {
         // Sky
         const grad = ctx.createLinearGradient(0, 0, 0, this.game.height);
         grad.addColorStop(0, '#020617');
         grad.addColorStop(1, '#1e293b');
         ctx.fillStyle = grad;
         ctx.fillRect(0,0,this.game.width, this.game.height);
+        
+        // Stars in BG
+        ctx.fillStyle = '#fff';
+        for(let i=0; i<50; i++) {
+             const px = (i * 123456) % this.game.width;
+             const py = (i * 654321) % (this.game.height/2);
+             ctx.globalAlpha = 0.5;
+             ctx.beginPath(); ctx.arc(px, py, 1, 0, Math.PI*2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        // Distant Mountains (Move slow)
+        const mountOffset = this.camera.x * 0.1; // Parallax Factor 0.1
+        ctx.fillStyle = '#0f172a'; // Very dark blue
+        ctx.beginPath();
+        ctx.moveTo(0, this.game.height);
+        for(let x=0; x<this.game.width; x+=50) {
+            // Pseudo-random mountain height based on world position
+            const h = Math.abs(Math.sin((x + mountOffset) * 0.01)) * 100 + 100;
+            ctx.lineTo(x, this.game.height - h);
+        }
+        ctx.lineTo(this.game.width, this.game.height);
+        ctx.fill();
+
+        // Near Hills (Move medium)
+        const hillOffset = this.camera.x * 0.3; 
+        ctx.fillStyle = this.theme.ground + '33'; // Semi-transparent planet color
+        ctx.beginPath();
+        ctx.moveTo(0, this.game.height);
+        for(let x=0; x<=this.game.width + 50; x+=50) {
+            const h = Math.abs(Math.sin((x + hillOffset) * 0.005)) * 50 + 50;
+            ctx.lineTo(x, this.game.height - h);
+        }
+        ctx.lineTo(this.game.width, this.game.height);
+        ctx.fill();
+    }
+
+    draw(ctx) {
+        // Draw Parallax Backgrounds (Stationary relative to canvas, but animated by camera)
+        this.drawParallax(ctx);
 
         ctx.save();
-        ctx.translate(-this.camera.x, -this.camera.y);
+        
+        ctx.scale(this.zoom, this.zoom);
+        ctx.translate(-Math.floor(this.camera.x), -Math.floor(this.camera.y));
 
         // Tiles
-        ctx.fillStyle = this.planet.data.color || '#475569';
         this.tiles.forEach(t => {
-            if (t.x + t.w < this.camera.x || t.x > this.camera.x + this.game.width) return;
+            if (t.x + t.w < this.camera.x || t.x > this.camera.x + (this.game.width/this.zoom)) return;
+            
+            // Texture with border
+            ctx.fillStyle = t.type === 'surface' ? this.theme.ground : '#0f172a';
             ctx.fillRect(t.x, t.y, t.w, t.h);
-            ctx.fillStyle = 'rgba(0,0,0,0.2)';
-            ctx.fillRect(t.x+2, t.y+2, t.w-4, t.h-4);
-            ctx.fillStyle = this.planet.data.color || '#475569';
+            
+            // "Highlight" top
+            if(t.type === 'surface') {
+                ctx.fillStyle = 'rgba(255,255,255,0.1)';
+                ctx.fillRect(t.x, t.y, t.w, 4);
+                
+                // Grass Decoration
+                if(t.deco === 1) {
+                    ctx.fillStyle = this.theme.ground;
+                    ctx.beginPath(); ctx.moveTo(t.x+10, t.y); ctx.lineTo(t.x+12, t.y-6); ctx.lineTo(t.x+14, t.y); ctx.fill();
+                    ctx.beginPath(); ctx.moveTo(t.x+20, t.y); ctx.lineTo(t.x+24, t.y-8); ctx.lineTo(t.x+28, t.y); ctx.fill();
+                }
+            }
+            
+            // Grid line
+            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+            ctx.strokeRect(t.x, t.y, t.w, t.h);
         });
+
+        // Ship
+        if (this.shipObj) {
+            Sprites.drawShipLanded(ctx, this.shipObj.x, this.shipObj.y);
+            
+            if (Math.abs(this.player.x - this.shipObj.x) < 80) {
+                 ctx.font = '8px monospace';
+                 ctx.fillStyle = '#fff';
+                 ctx.textAlign = 'center';
+                 ctx.fillText("TAKEOFF [UP]", this.shipObj.x + 32, this.shipObj.y - 10);
+            }
+        }
 
         // NPCs
         this.npcs.forEach(n => {
-            ctx.drawImage(n.type === 'elder' ? this.sprites.elder : this.sprites.martian, n.x, n.y);
-            if (Math.abs(this.player.x - n.x) < 50) {
-                ctx.fillStyle = '#fff'; ctx.font = '10px monospace';
-                const label = n.type === 'scholar' ? "[UP] RELOAD" : "[UP] TALK";
-                ctx.fillText(label, n.x - 10, n.y - 10);
+            Sprites.drawAlien(ctx, n.x, n.y, n.type === 'elder' ? '#facc15' : '#22c55e', n.h, this.player.animFrame);
+            if (Math.abs(this.player.x - n.x) < 80) {
+                ctx.fillStyle = '#fff';
+                ctx.beginPath(); ctx.moveTo(n.x+16, n.y-10); ctx.lineTo(n.x+24, n.y-20); ctx.lineTo(n.x+8, n.y-20); ctx.fill();
             }
         });
 
         // Enemies
-        this.enemies.forEach(e => ctx.drawImage(this.sprites.enemy, e.x, e.y));
+        this.enemies.forEach(e => {
+            const bounce = Math.abs(Math.sin(this.player.animFrame * 0.2)) * 5;
+            Sprites.drawBlob(ctx, e.x, e.y - bounce, '#ef4444');
+        });
 
         // Projectiles
         ctx.fillStyle = '#facc15';
-        this.projectiles.forEach(p => ctx.fillRect(p.x, p.y, p.w, p.h));
+        this.projectiles.forEach(p => {
+            ctx.fillRect(p.x, p.y, p.w, p.h);
+            ctx.shadowColor = '#facc15'; ctx.shadowBlur = 10;
+        });
+        ctx.shadowBlur = 0;
 
         // Player
-        ctx.save();
-        ctx.translate(this.player.x + this.player.w/2, this.player.y + this.player.h/2);
-        ctx.scale(this.player.facing, 1);
-        ctx.drawImage(this.sprites.hero, -this.player.w/2, -this.player.h/2);
-        ctx.restore();
+        Sprites.drawAstronaut(ctx, this.player.x, this.player.y, this.player.facing, this.player.state, this.player.animFrame);
 
         ctx.restore();
+        
+        // Atmosphere Overlay
+        const grad = ctx.createLinearGradient(0, 0, 0, this.game.height);
+        grad.addColorStop(0, this.theme.ground + '33');
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.globalCompositeOperation = 'overlay';
+        ctx.fillRect(0,0,this.game.width, this.game.height);
+        ctx.globalCompositeOperation = 'source-over';
     }
 }

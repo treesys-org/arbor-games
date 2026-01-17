@@ -5,6 +5,7 @@
  */
 import { SpaceEngine } from './space.js';
 import { PlatformerEngine } from './platformer.js';
+import { InputManager } from './utils.js';
 
 class Game {
     constructor() {
@@ -15,48 +16,39 @@ class Game {
         this.canvas.width = this.width;
         this.canvas.height = this.height;
 
-        this.input = {
-            keys: {},
-            consume: (k) => {
-                if (this.input.keys[k]) { this.input.keys[k] = false; return true; }
-                return false;
-            }
-        };
+        // Shared Input Manager (Keyboard + Touch)
+        this.input = new InputManager();
 
         this.particles = [];
-        this.mode = 'prologue'; // prologue, space, planet
+        this.mode = 'prologue'; 
         this.shakeTimer = 0;
 
         // Engines
         this.space = new SpaceEngine(this);
         this.planet = new PlatformerEngine(this);
 
-        this.initInput();
+        this.initListeners();
         this.startSequence();
         
-        window.addEventListener('resize', () => {
-            this.width = window.innerWidth; this.height = window.innerHeight;
-            this.canvas.width = this.width; this.canvas.height = this.height;
-        });
-
         this.loop = this.loop.bind(this);
         requestAnimationFrame(this.loop);
     }
 
-    initInput() {
-        window.addEventListener('keydown', e => {
-            this.input.keys[e.key] = true;
-            this.input.keys[e.key.toLowerCase()] = true; // Handle Z vs z
+    initListeners() {
+        window.addEventListener('resize', () => {
+            this.width = window.innerWidth; this.height = window.innerHeight;
+            this.canvas.width = this.width; this.canvas.height = this.height;
+            // Re-center joystick logic if needed
+            this.space.resetJoystick();
         });
-        window.addEventListener('keyup', e => {
-            this.input.keys[e.key] = false;
-            this.input.keys[e.key.toLowerCase()] = false;
-        });
-        
-        // Prologue Button
+
         document.getElementById('btn-start').onclick = () => {
             document.getElementById('prologue-screen').classList.add('hidden');
             this.switchMode('space');
+        };
+
+        document.getElementById('btn-respawn').onclick = () => {
+            this.planet.loadLevel(this.space.activePlanet);
         };
     }
 
@@ -83,9 +75,12 @@ class Game {
 
     switchMode(mode) {
         this.mode = mode;
+        this.input.reset(); // Clear keys to prevent stuck inputs
+        
         if (mode === 'space') {
             document.getElementById('ui-space').classList.remove('hidden');
             document.getElementById('ui-planet').classList.add('hidden');
+            this.space.resetJoystick();
         } else if (mode === 'planet') {
             document.getElementById('ui-space').classList.add('hidden');
             document.getElementById('ui-planet').classList.remove('hidden');
@@ -93,8 +88,14 @@ class Game {
         }
     }
 
-    spawnParticle(x, y, color) {
-        this.particles.push({x, y, color, life: 1.0, vx: (Math.random()-0.5)*2, vy: (Math.random()-0.5)*2});
+    spawnParticle(x, y, color, speed = 1, size = 3) {
+        this.particles.push({
+            x, y, color, 
+            life: 1.0, 
+            vx: (Math.random()-0.5) * speed, 
+            vy: (Math.random()-0.5) * speed,
+            size: size
+        });
     }
 
     shake(amount) {
@@ -102,19 +103,21 @@ class Game {
     }
 
     loop() {
-        // Logic
+        // Update Logic
         if (this.mode === 'space') {
             this.space.update();
-            if (this.space.activePlanet && this.input.consume(' ')) {
-                this.switchMode('planet');
-            }
         } else if (this.mode === 'planet') {
             this.planet.update();
         }
 
-        // Particles
-        this.particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.life -= 0.05; });
-        this.particles = this.particles.filter(p => p.life > 0);
+        // Global Particles
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life -= 0.03;
+            if (p.life <= 0) this.particles.splice(i, 1);
+        }
 
         // Render
         this.ctx.save();
@@ -134,7 +137,7 @@ class Game {
         this.particles.forEach(p => {
             this.ctx.globalAlpha = p.life;
             this.ctx.fillStyle = p.color;
-            this.ctx.fillRect(p.x, p.y, 3, 3);
+            this.ctx.fillRect(p.x, p.y, p.size, p.size);
         });
         this.ctx.globalAlpha = 1;
 
