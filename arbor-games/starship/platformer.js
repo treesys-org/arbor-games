@@ -45,10 +45,10 @@ export class PlatformerEngine {
         this.levelWidth = 0;
         this.tileSize = 48; 
         
-        // PHYSICS TUNING
+        // PHYSICS TUNING - Adjusted for tighter control
         this.gravity = 0.8;
-        this.friction = 0.82; // Higher friction to stop sliding
-        this.speed = 1.2;     // Acceleration
+        this.friction = 0.5; // Much stronger friction to stop sliding immediately
+        this.speed = 1.5;     // Acceleration
         this.maxSpeed = 8.0;  // Cap to prevent teleporting
         this.jumpForce = -16;
         
@@ -69,6 +69,7 @@ export class PlatformerEngine {
         this.dialogueQueue = [];
         this.activeDialogue = null;
         this.interactingNPC = null;
+        this.pendingLaunch = false; // Confirmation flag
         
         // Default theme to prevent render errors before load
         this.theme = { ground: '#334155', sky: '#0f172a', bgMount: '#1e293b' };
@@ -93,6 +94,7 @@ export class PlatformerEngine {
         this.ui.deathScreen.classList.add('hidden');
         this.planet = planet;
         this.isLoading = true; // BLOCK PHYSICS & RENDER
+        this.pendingLaunch = false;
         
         // Setup Theme
         this.theme = {
@@ -292,28 +294,33 @@ export class PlatformerEngine {
                 this.activeDialogue = null;
                 this.ui.dialogueBox.style.display = 'none';
                 
-                if (this.interactingNPC && this.interactingNPC.type === 'beacon_npc') {
+                // EXECUTE LAUNCH IF CONFIRMED
+                if (this.pendingLaunch) {
                     this.game.switchMode('space');
                     if(window.Arbor && window.Arbor.game) window.Arbor.game.addXP(200);
+                    this.pendingLaunch = false;
                 }
             }
             return; 
         }
 
-        // --- PLAYER PHYSICS MOVEMENT FIXED ---
-        if (this.game.input.keys['ArrowLeft']) {
+        // --- PLAYER PHYSICS MOVEMENT REVISED ---
+        const pressingLeft = this.game.input.keys['ArrowLeft'];
+        const pressingRight = this.game.input.keys['ArrowRight'];
+
+        if (pressingLeft) {
             this.player.vx -= this.speed;
             this.player.facing = -1;
             this.player.state = 'run';
-        }
-        else if (this.game.input.keys['ArrowRight']) {
+        } else if (pressingRight) {
             this.player.vx += this.speed;
             this.player.facing = 1;
             this.player.state = 'run';
         } else {
             this.player.state = 'idle';
-            // Stop faster if no input
-            this.player.vx *= 0.8; 
+            // SNAP TO ZERO: Remove slippery feeling
+            this.player.vx *= this.friction; 
+            if (Math.abs(this.player.vx) < 0.5) this.player.vx = 0;
         }
 
         // Clamp Speed (Prevent Teleporting)
@@ -326,9 +333,8 @@ export class PlatformerEngine {
             this.game.spawnParticle(this.player.x + 16, this.player.y + 48, '#fff', 3);
         }
 
-        // Apply Physics
-        this.player.vx *= this.friction; // Friction
-        this.player.vy += this.gravity; // Gravity
+        // Apply Physics (Y Axis only here, X handled with custom friction above)
+        this.player.vy += this.gravity; 
         
         // Terminal Velocity for falling
         if(this.player.vy > 18) this.player.vy = 18;
@@ -445,7 +451,13 @@ export class PlatformerEngine {
         
         if (nearby && (this.game.input.consume('ArrowUp'))) {
             if (isShip) {
-                this.game.switchMode('space');
+                // CONFIRMATION FOR LAUNCH
+                this.pendingLaunch = true;
+                this.showDialogue("SHIP COMPUTER", "Orbit synchronization ready. Confirm launch sequence? [PRESS JUMP]");
+            } else if (nearby.type === 'beacon_npc') {
+                 // CONFIRMATION FOR BEACON
+                this.pendingLaunch = true;
+                this.showDialogue("BEACON", "Extraction signal locked. Leave planet? [PRESS JUMP]");
             } else {
                 this.interactingNPC = nearby;
                 if (nearby.type === 'scholar') {
@@ -456,8 +468,6 @@ export class PlatformerEngine {
                 // Determine text based on type
                 let text = nearby.text;
                 let speaker = nearby.type.toUpperCase();
-                if (nearby.type === 'beacon_npc') { speaker = "SYSTEM"; text = "Orbit Synchronized. Ready for extraction?"; }
-                
                 this.showDialogue(speaker, text);
             }
         }
