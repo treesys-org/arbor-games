@@ -46,6 +46,7 @@ export class PlatformerEngine {
             btnInteract: document.getElementById('btn-interact')
         };
         
+        this.isLoading = false;
         this.bindTouchControls();
 
         this.dialogueQueue = [];
@@ -74,24 +75,49 @@ export class PlatformerEngine {
         this.ui.layer.classList.remove('hidden');
         this.ui.deathScreen.classList.add('hidden');
         this.planet = planet;
+        this.isLoading = true; // BLOCK PHYSICS & RENDER
         
-        // 1. Setup Theme & Physics Immediately (Synchronous)
+        // Setup Theme
         this.theme = {
             ground: planet.color,
             sky: '#0f172a',
             bgMount: '#1e293b'
         };
         
-        const rng = new SeededRandom(planet.data.title);
+        // Async Data Fetch
+        if (window.Arbor && window.Arbor.content) {
+            window.Arbor.content.getAt(planet.data.index).then(data => {
+                this.generateWorld(data);
+            }).catch(e => {
+                console.warn("Arbor Content Load Error", e);
+                this.generateWorld({ title: planet.data.title, text: "Signal lost. Data fragments corrupted." });
+            });
+        } else {
+            // Mock loading delay for visual feel
+            setTimeout(() => {
+                this.generateWorld({ title: planet.data.title, text: "Simulation Mode. No data uplink." });
+            }, 1000);
+        }
+    }
+
+    generateWorld(data) {
+        const rng = new SeededRandom(data.title);
+        
+        // Process Text
+        const cleanText = (data.text || "").replace(/<[^>]*>/g, '');
+        const sentences = cleanText.split('. ').filter(s => s.length > 10);
+        
         this.tiles = [];
         this.npcs = [];
         this.enemies = [];
+        this.projectiles = [];
         this.levelWidth = 4000;
         
         const groundY = 12; 
         let height = groundY;
+        let scholarCount = 0;
 
-        // 2. Generate World (Synchronous)
+        // Generate Terrain & Entities
         for (let x = 0; x < this.levelWidth / this.tileSize; x++) {
             if(rng.next() > 0.6 && x > 5) height += rng.pick([-1, 0, 1]); 
             height = Math.max(8, Math.min(16, height));
@@ -116,14 +142,17 @@ export class PlatformerEngine {
                 this.tiles.push({ x: x*this.tileSize, y: py*this.tileSize, w: this.tileSize, h: this.tileSize, type: 'plat' });
             }
 
-            // Entities Placeholders (Content filled later)
+            // Entities
             if (x > 8 && rng.next() > 0.85) {
                 if (rng.next() > 0.5) {
+                    // Scholar NPC - Assign text from lesson immediately
+                    const text = sentences[scholarCount % sentences.length] || "Searching for data...";
                     this.npcs.push({ 
                         x: x*this.tileSize, y: (height-1)*this.tileSize - 48, w: 32, h: 48, 
-                        text: "Decoding...", // Placeholder text
+                        text: text,
                         type: 'scholar' 
                     });
+                    scholarCount++;
                 } else {
                     this.enemies.push({
                         x: x*this.tileSize, y: (height-2)*this.tileSize, w: 32, h: 32,
@@ -133,7 +162,7 @@ export class PlatformerEngine {
             }
         }
 
-        // 3. Setup Objects
+        // Setup End Object
         const endX = this.levelWidth - 300;
         this.npcs.push({ x: endX, y: height*this.tileSize - 64, w: 32, h: 64, text: "Data Secured. Launching...", type: 'elder' });
         this.tiles.push({ x: endX - 50, y: height*this.tileSize, w: 200, h: this.tileSize, type: 'surface' });
@@ -144,7 +173,7 @@ export class PlatformerEngine {
             w: 64, h: 64 
         };
 
-        // 4. Reset Player Physics
+        // Reset Player Physics
         this.player.x = 150; 
         this.player.y = (groundY * this.tileSize) - 100;
         this.player.vx = 0; 
@@ -152,32 +181,19 @@ export class PlatformerEngine {
         this.player.health = 100;
         this.player.ammo = 0; 
         this.player.state = 'idle';
-        this.projectiles = [];
+        this.player.grounded = false;
         
-        // 5. Force Camera Snap
+        // Force Camera Snap
         this.camera.x = this.player.x - (this.game.width / this.zoom / 2);
         this.camera.y = Math.min(this.player.y - (this.game.height / this.zoom / 2), 300);
 
         this.updateHUD();
-
-        // 6. Async Content Fetch (Does not block physics/rendering)
-        if (window.Arbor && window.Arbor.content) {
-            window.Arbor.content.getAt(planet.data.index).then(data => {
-                const sentences = data.text.replace(/<[^>]*>/g, '').split('. ').filter(s => s.length > 10);
-                this.lessonData = { title: data.title, chunks: sentences };
-                // Update NPCs with real content
-                this.npcs.forEach((n, i) => {
-                    if (n.type === 'scholar') {
-                        n.text = this.lessonData.chunks[i % this.lessonData.chunks.length] || "Knowledge lost.";
-                    }
-                });
-            }).catch(e => {
-                console.warn("Arbor Content Load Error", e);
-            });
-        }
+        this.isLoading = false; // UNBLOCK
     }
 
     update() {
+        if (this.isLoading) return; // SKIP LOGIC WHILE LOADING
+
         if (this.player.health <= 0) return;
 
         if (this.activeDialogue) {
@@ -387,6 +403,45 @@ export class PlatformerEngine {
     }
 
     draw(ctx) {
+        // DRAW LOADING SCREEN IF LOADING
+        if (this.isLoading) {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0,0,this.game.width, this.game.height);
+            
+            // Atmospheric Glow
+            const grad = ctx.createRadialGradient(this.game.width/2, this.game.height/2, 50, this.game.width/2, this.game.height/2, 400);
+            grad.addColorStop(0, this.theme.ground);
+            grad.addColorStop(1, 'transparent');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0,0,this.game.width, this.game.height);
+
+            // Text
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 30px "Orbitron", monospace';
+            
+            const dots = ".".repeat(Math.floor(Date.now() / 500) % 4);
+            ctx.fillText("ENTERING ATMOSPHERE" + dots, this.game.width/2, this.game.height/2 - 20);
+            
+            ctx.font = '16px monospace';
+            ctx.fillStyle = '#86efac';
+            ctx.fillText("GENERATING TERRAIN...", this.game.width/2, this.game.height/2 + 20);
+            
+            // Loading Bar
+            ctx.strokeStyle = '#fff';
+            ctx.strokeRect(this.game.width/2 - 100, this.game.height/2 + 50, 200, 10);
+            ctx.fillStyle = '#fff';
+            
+            // Infinite progress bar animation
+            const progress = (Date.now() % 1000) / 1000;
+            ctx.fillRect(this.game.width/2 - 98 + (progress * 196), this.game.height/2 + 52, 40, 6);
+            
+            ctx.restore();
+            return;
+        }
+
+        // NORMAL DRAW
         // Draw Parallax Backgrounds
         this.drawParallax(ctx);
 
