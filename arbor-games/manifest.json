@@ -26,5 +26,14 @@
     "path": "./arbor-games/firstjob/index.html",
     "author": "Arbor Official",
     "version": "3.0.0"
+  },
+  {
+    "id": "starship",
+    "name": "Starship Learner",
+    "icon": "🚀",
+    "description": "Explora el currículo como una galaxia. Vuela entre lecciones y aterriza para adquirir conocimiento.",
+    "path": "./arbor-games/starship/index.html",
+    "author": "Arbor Official",
+    "version": "1.0.0"
   }
 ]
