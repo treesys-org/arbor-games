@@ -51,6 +51,9 @@ export class PlatformerEngine {
         this.dialogueQueue = [];
         this.activeDialogue = null;
         this.interactingNPC = null;
+        
+        // Default theme to prevent render errors before load
+        this.theme = { ground: '#334155', sky: '#0f172a', bgMount: '#1e293b' };
     }
 
     bindTouchControls() {
@@ -67,19 +70,18 @@ export class PlatformerEngine {
         bind('btn-interact', 'ArrowUp'); 
     }
 
-    async loadLevel(planet) {
+    loadLevel(planet) {
         this.ui.layer.classList.remove('hidden');
         this.ui.deathScreen.classList.add('hidden');
         this.planet = planet;
         
-        try {
-            const data = await window.Arbor.content.getAt(planet.data.index);
-            const sentences = data.text.replace(/<[^>]*>/g, '').split('. ').filter(s => s.length > 10);
-            this.lessonData = { title: data.title, chunks: sentences };
-        } catch(e) {
-            this.lessonData = { title: "Unknown", chunks: ["Data corrupted.", "Survive."] };
-        }
-
+        // 1. Setup Theme & Physics Immediately (Synchronous)
+        this.theme = {
+            ground: planet.color,
+            sky: '#0f172a',
+            bgMount: '#1e293b'
+        };
+        
         const rng = new SeededRandom(planet.data.title);
         this.tiles = [];
         this.npcs = [];
@@ -88,15 +90,8 @@ export class PlatformerEngine {
         
         const groundY = 12; 
         let height = groundY;
-        
-        // Colors from planet
-        this.theme = {
-            ground: planet.color,
-            sky: '#0f172a',
-            bgMount: '#1e293b'
-        };
 
-        // Generate Tiles
+        // 2. Generate World (Synchronous)
         for (let x = 0; x < this.levelWidth / this.tileSize; x++) {
             if(rng.next() > 0.6 && x > 5) height += rng.pick([-1, 0, 1]); 
             height = Math.max(8, Math.min(16, height));
@@ -104,7 +99,6 @@ export class PlatformerEngine {
             // Surface & Dirt
             for (let y = height; y < 20; y++) {
                 const type = y === height ? 'surface' : 'deep';
-                // Add grass decoration probability
                 let deco = 0;
                 if (type === 'surface' && rng.next() > 0.5) deco = rng.pick([1, 2]); // 1=grass, 2=rock
                 
@@ -122,13 +116,12 @@ export class PlatformerEngine {
                 this.tiles.push({ x: x*this.tileSize, y: py*this.tileSize, w: this.tileSize, h: this.tileSize, type: 'plat' });
             }
 
-            // Entities
+            // Entities Placeholders (Content filled later)
             if (x > 8 && rng.next() > 0.85) {
                 if (rng.next() > 0.5) {
-                    const chunk = this.lessonData.chunks[this.npcs.length % this.lessonData.chunks.length] || "Beware the Swarm.";
                     this.npcs.push({ 
                         x: x*this.tileSize, y: (height-1)*this.tileSize - 48, w: 32, h: 48, 
-                        text: chunk, 
+                        text: "Decoding...", // Placeholder text
                         type: 'scholar' 
                     });
                 } else {
@@ -140,34 +133,48 @@ export class PlatformerEngine {
             }
         }
 
-        const startHeight = groundY; 
+        // 3. Setup Objects
+        const endX = this.levelWidth - 300;
+        this.npcs.push({ x: endX, y: height*this.tileSize - 64, w: 32, h: 64, text: "Data Secured. Launching...", type: 'elder' });
+        this.tiles.push({ x: endX - 50, y: height*this.tileSize, w: 200, h: this.tileSize, type: 'surface' });
+
         this.shipObj = { 
             x: 50, 
-            y: (startHeight * this.tileSize) - 64 + 10, 
+            y: (groundY * this.tileSize) - 64 + 10, 
             w: 64, h: 64 
         };
 
-        // Initialize Player Placement logic
+        // 4. Reset Player Physics
         this.player.x = 150; 
-        // Force player Y to be above the ground tiles generated at x=150 (approx x index 3)
-        // Since x < 5, height is exactly groundY (12).
         this.player.y = (groundY * this.tileSize) - 100;
-        
-        this.player.vx = 0; this.player.vy = 0; 
+        this.player.vx = 0; 
+        this.player.vy = 0; 
         this.player.health = 100;
         this.player.ammo = 0; 
+        this.player.state = 'idle';
         this.projectiles = [];
-        this.updateHUD();
-
-        const endX = this.levelWidth - 300;
-        this.npcs.push({ x: endX, y: 0, w: 32, h: 64, text: "Data Secured. Launching...", type: 'elder' });
-        this.tiles.push({ x: endX - 50, y: height*this.tileSize, w: 200, h: this.tileSize, type: 'surface' });
-        this.npcs[this.npcs.length-1].y = height*this.tileSize - 64;
-
-        // CRITICAL FIX: Force Camera to center on player immediately
-        // This prevents the "empty screen" issue if camera starts at 0,0 and lerps slowly
+        
+        // 5. Force Camera Snap
         this.camera.x = this.player.x - (this.game.width / this.zoom / 2);
         this.camera.y = Math.min(this.player.y - (this.game.height / this.zoom / 2), 300);
+
+        this.updateHUD();
+
+        // 6. Async Content Fetch (Does not block physics/rendering)
+        if (window.Arbor && window.Arbor.content) {
+            window.Arbor.content.getAt(planet.data.index).then(data => {
+                const sentences = data.text.replace(/<[^>]*>/g, '').split('. ').filter(s => s.length > 10);
+                this.lessonData = { title: data.title, chunks: sentences };
+                // Update NPCs with real content
+                this.npcs.forEach((n, i) => {
+                    if (n.type === 'scholar') {
+                        n.text = this.lessonData.chunks[i % this.lessonData.chunks.length] || "Knowledge lost.";
+                    }
+                });
+            }).catch(e => {
+                console.warn("Arbor Content Load Error", e);
+            });
+        }
     }
 
     update() {
@@ -339,8 +346,8 @@ export class PlatformerEngine {
     drawParallax(ctx) {
         // Sky
         const grad = ctx.createLinearGradient(0, 0, 0, this.game.height);
-        grad.addColorStop(0, '#020617');
-        grad.addColorStop(1, '#1e293b');
+        grad.addColorStop(0, this.theme.sky);
+        grad.addColorStop(1, this.theme.bgMount);
         ctx.fillStyle = grad;
         ctx.fillRect(0,0,this.game.width, this.game.height);
         
@@ -359,8 +366,7 @@ export class PlatformerEngine {
         ctx.fillStyle = '#0f172a'; // Very dark blue
         ctx.beginPath();
         ctx.moveTo(0, this.game.height);
-        for(let x=0; x<this.game.width; x+=50) {
-            // Pseudo-random mountain height based on world position
+        for(let x=0; x<this.game.width + 50; x+=50) {
             const h = Math.abs(Math.sin((x + mountOffset) * 0.01)) * 100 + 100;
             ctx.lineTo(x, this.game.height - h);
         }
@@ -381,7 +387,7 @@ export class PlatformerEngine {
     }
 
     draw(ctx) {
-        // Draw Parallax Backgrounds (Stationary relative to canvas, but animated by camera)
+        // Draw Parallax Backgrounds
         this.drawParallax(ctx);
 
         ctx.save();
