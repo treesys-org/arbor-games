@@ -67,7 +67,6 @@ export class PlatformerEngine {
         this.dialogueQueue = [];
         this.activeDialogue = null;
         this.interactingNPC = null;
-        this.pendingLaunch = false; // Confirmation flag
         
         // Default theme to prevent render errors before load
         this.theme = { ground: '#334155', sky: '#0f172a', bgMount: '#1e293b' };
@@ -115,7 +114,6 @@ export class PlatformerEngine {
         this.ui.deathScreen.classList.add('hidden');
         this.planet = planet;
         this.isLoading = true; // BLOCK PHYSICS & RENDER
-        this.pendingLaunch = false;
         
         // Setup Theme
         this.theme = {
@@ -256,6 +254,7 @@ export class PlatformerEngine {
             }
 
             // START: Ship
+            // Fixed: Placed ship slightly to the left, and start player to the right to avoid overlapping interaction zone immediately
             this.shipObj = { 
                 x: 100, 
                 y: (groundY * this.tileSize) - 64 + 10, 
@@ -265,7 +264,7 @@ export class PlatformerEngine {
             // START: Elder (Quest Giver)
             const elderText = storyContext ? storyContext.elder_greeting : "Traveler! Our world is overrun. These shadows feed on ignorance. Destroy them and reclaim the Data Fragments!";
             this.npcs.push({ 
-                x: 250, 
+                x: 350, // Pushed further out
                 y: (groundY * this.tileSize) - 64, 
                 w: 32, h: 64, 
                 text: elderText, 
@@ -273,7 +272,7 @@ export class PlatformerEngine {
             });
             
             // First Hut for Elder
-            this.props.push({ x: 220, y: (groundY * this.tileSize) - 80, type: 'hut', w: 100, h: 80 });
+            this.props.push({ x: 320, y: (groundY * this.tileSize) - 80, type: 'hut', w: 100, h: 80 });
 
             // END: Exit Beacon
             const endX = this.levelWidth - 300;
@@ -287,7 +286,7 @@ export class PlatformerEngine {
             });
 
             // Reset Player Physics
-            this.player.x = 100; 
+            this.player.x = 220; // Start away from the ship interaction zone
             this.player.y = (groundY * this.tileSize) - 200; 
             this.player.vx = 0; 
             this.player.vy = 0; 
@@ -315,13 +314,6 @@ export class PlatformerEngine {
             if (this.game.input.consume('ArrowUp') || this.game.input.consume(' ') || this.game.input.consume('Enter')) {
                 this.activeDialogue = null;
                 this.ui.dialogueBox.style.display = 'none';
-                
-                // EXECUTE LAUNCH IF CONFIRMED
-                if (this.pendingLaunch) {
-                    this.game.switchMode('space');
-                    if(window.Arbor && window.Arbor.game) window.Arbor.game.addXP(200);
-                    this.pendingLaunch = false;
-                }
             }
             return; 
         }
@@ -351,6 +343,15 @@ export class PlatformerEngine {
             this.player.vy = this.jumpForce;
             this.player.grounded = false;
             this.game.spawnParticle(this.player.x + 16, this.player.y + 48, '#fff', 3);
+        }
+        
+        // Ship Launch Interaction (Using 'Z' or a specific non-jump key)
+        if (this.shipObj && Math.abs(this.player.x - this.shipObj.x) < 80 && Math.abs(this.player.y - this.shipObj.y) < 80) {
+            // Player is near ship
+            if (this.game.input.consume('z')) {
+                 this.game.switchMode('space');
+                 if(window.Arbor && window.Arbor.game) window.Arbor.game.addXP(200);
+            }
         }
 
         // Apply Gravity
@@ -469,19 +470,18 @@ export class PlatformerEngine {
             isShip = true;
         }
 
-        this.ui.btnInteract.style.display = nearby ? 'flex' : 'none';
+        // Only show interact button for actual NPCs, not the ship (ship uses Z)
+        this.ui.btnInteract.style.display = (nearby && !isShip) ? 'flex' : 'none';
         
         // Touch Interaction: Tapping the dedicated interact button on mobile
         // OR pressing ArrowUp/Space on desktop
         if (nearby && (this.game.input.consume('ArrowUp') || this.game.input.consume('Enter'))) {
             if (isShip) {
-                // CONFIRMATION FOR LAUNCH
-                this.pendingLaunch = true;
-                this.showDialogue("SHIP COMPUTER", "Orbit synchronization ready. Confirm launch sequence? [PRESS JUMP]");
+                // Do nothing, ship uses Z now
             } else if (nearby.type === 'beacon_npc') {
-                 // CONFIRMATION FOR BEACON
-                this.pendingLaunch = true;
-                this.showDialogue("BEACON", "Extraction signal locked. Leave planet? [PRESS JUMP]");
+                 // Launch immediate
+                 this.game.switchMode('space');
+                 if(window.Arbor && window.Arbor.game) window.Arbor.game.addXP(200);
             } else {
                 this.interactingNPC = nearby;
                 if (nearby.type === 'scholar') {
@@ -629,9 +629,27 @@ export class PlatformerEngine {
         // Ship
         if (this.shipObj) {
             Sprites.drawShipLanded(ctx, this.shipObj.x, this.shipObj.y);
+            // Floating Text Prompt
             if (Math.abs(this.player.x - this.shipObj.x) < 80) {
-                 ctx.font = '8px monospace'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
-                 ctx.fillText("TAKEOFF [UP]", this.shipObj.x + 32, this.shipObj.y - 10);
+                 ctx.save();
+                 ctx.translate(this.shipObj.x + 32, this.shipObj.y - 20);
+                 const bob = Math.sin(Date.now()*0.005) * 3;
+                 ctx.translate(0, bob);
+                 
+                 ctx.font = 'bold 8px "Orbitron"'; 
+                 ctx.fillStyle = '#facc15'; ctx.textAlign = 'center';
+                 ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
+                 
+                 // Background box for text
+                 ctx.fillStyle = 'rgba(0,0,0,0.8)';
+                 ctx.fillRect(-40, -10, 80, 12);
+                 ctx.strokeStyle = '#facc15';
+                 ctx.strokeRect(-40, -10, 80, 12);
+                 
+                 ctx.fillStyle = '#facc15';
+                 ctx.fillText("PRESS [Z] TO LAUNCH", 0, -1);
+                 
+                 ctx.restore();
             }
         }
 

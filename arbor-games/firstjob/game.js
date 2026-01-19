@@ -289,6 +289,10 @@ class Game {
     startGameWorld() {
         this.els.taskOverlay.style.display = 'none';
         this.resetInputUI(); // Restore click handler
+        
+        // RESET PLAYER FLOOR INDEX TO 0
+        this.player.z = 0;
+        
         this.building.generate(this.data.depts);
         this.state = 'PLAY';
         this.stress = 0;
@@ -307,11 +311,16 @@ class Game {
 
     triggerPhoneCall() {
         if(this.state !== 'PLAY' || this.phone.targetNPC || this.paused || this.shop.active) return;
+        
+        // Safeguard against missing floors
+        if (!this.building.floors || this.building.floors.length <= 2) return;
+        
         const officeFloors = this.building.floors.slice(2);
         if (officeFloors.length === 0) return;
         const floorIdx = Math.floor(Math.random() * officeFloors.length) + 2;
         const floor = this.building.floors[floorIdx];
-        if(floor.npcs && floor.npcs.length > 0) {
+        
+        if(floor && floor.npcs && floor.npcs.length > 0) {
             const npc = floor.npcs[Math.floor(Math.random()*floor.npcs.length)];
             this.phone.targetNPC = npc; this.phone.active = false; this.phone.ringing = true;
             this.phone.caller = npc.role; this.phone.floorName = floor.name;
@@ -353,13 +362,16 @@ class Game {
     updateCamera() {
         const pX = this.player.vx; const pY = this.player.vy;
         let targetCX = pX - (CONFIG.W / 2) + (CONFIG.TILE/2) + 20; 
-        const floor = this.building.floors[this.player.z];
-        const maxW = (floor.map[0].length * CONFIG.TILE);
-        const maxH = (floor.map.length * CONFIG.TILE);
-        targetCX = Math.max(0, Math.min(targetCX, maxW - CONFIG.W + 40));
-        const targetCY = Math.max(0, Math.min(pY - (CONFIG.H/2), maxH - CONFIG.H));
-        this.camera.x += (targetCX - this.camera.x) * 0.08;
-        this.camera.y += (targetCY - this.camera.y) * 0.08;
+        
+        if (this.building && this.building.floors && this.building.floors[this.player.z]) {
+            const floor = this.building.floors[this.player.z];
+            const maxW = (floor.map[0].length * CONFIG.TILE);
+            const maxH = (floor.map.length * CONFIG.TILE);
+            targetCX = Math.max(0, Math.min(targetCX, maxW - CONFIG.W + 40));
+            const targetCY = Math.max(0, Math.min(pY - (CONFIG.H/2), maxH - CONFIG.H));
+            this.camera.x += (targetCX - this.camera.x) * 0.08;
+            this.camera.y += (targetCY - this.camera.y) * 0.08;
+        }
     }
 
     getHumanSprite(s, h, v) { const k=`${s}-${h}-${v}`; if(!this.humanCache[k]) this.humanCache[k]=SpriteGen.human(s,h,v); return this.humanCache[k]; }

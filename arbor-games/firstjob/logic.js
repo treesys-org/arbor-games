@@ -81,7 +81,10 @@ export class GameLogic {
     }
 
     movePlayer(dx, dy) {
+        if (!this.game.building || !this.game.building.floors) return;
         const f = this.game.building.floors[this.game.player.z];
+        if (!f || !f.map) return;
+
         const nx = this.game.player.x + dx;
         const ny = this.game.player.y + dy;
         
@@ -106,15 +109,21 @@ export class GameLogic {
         // STAIRS
         if(t === 3 && this.game.player.z < this.game.building.floors.length-1) {
             this.game.player.z++;
-            const spawn = this.game.building.floors[this.game.player.z].spawns.down;
-            this.setPlayerPos(spawn.x, spawn.y);
-            this.game.showMessage(`${this.game.building.floors[this.game.player.z].name}`);
+            const nextF = this.game.building.floors[this.game.player.z];
+            if(nextF) {
+                const spawn = nextF.spawns.down;
+                this.setPlayerPos(spawn.x, spawn.y);
+                this.game.showMessage(`${nextF.name}`);
+            }
         }
         else if(t === 4 && this.game.player.z > 0) {
             this.game.player.z--;
-            const spawn = this.game.building.floors[this.game.player.z].spawns.up;
-            this.setPlayerPos(spawn.x, spawn.y);
-            this.game.showMessage(`${this.game.building.floors[this.game.player.z].name}`);
+            const prevF = this.game.building.floors[this.game.player.z];
+            if(prevF) {
+                const spawn = prevF.spawns.up;
+                this.setPlayerPos(spawn.x, spawn.y);
+                this.game.showMessage(`${prevF.name}`);
+            }
         }
     }
 
@@ -125,8 +134,9 @@ export class GameLogic {
     }
 
     updateNPCs() {
+        if (!this.game.building || !this.game.building.floors) return;
         const f = this.game.building.floors[this.game.player.z];
-        if (!f.npcs) return;
+        if (!f || !f.npcs) return;
         
         f.npcs.forEach(npc => {
             if (typeof npc.vx === 'undefined') { npc.vx = npc.x * CONFIG.TILE; npc.vy = npc.y * CONFIG.TILE; }
@@ -140,7 +150,7 @@ export class GameLogic {
                     const d = dirs[Math.floor(Math.random()*dirs.length)];
                     const nx = npc.x + d.x;
                     const ny = npc.y + d.y;
-                    if (f.map[ny] && f.map[ny][nx] !== 1 && (nx !== this.game.player.x || ny !== this.game.player.y)) {
+                    if (f.map && f.map[ny] && f.map[ny][nx] !== 1 && (nx !== this.game.player.x || ny !== this.game.player.y)) {
                          npc.x = nx; npc.y = ny;
                     }
                     npc.moveTimer = 0;
@@ -187,7 +197,10 @@ export class GameLogic {
     }
 
     checkInteract() {
+        if (!this.game.building || !this.game.building.floors) return;
         const f = this.game.building.floors[this.game.player.z];
+        if (!f || !f.npcs) return;
+
         const dirs = [{x:0,y:0}, {x:0,y:1}, {x:0,y:-1}, {x:1,y:0}, {x:-1,y:0}];
         for (let d of dirs) {
             const tx = this.game.player.x + d.x;

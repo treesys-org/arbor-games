@@ -63,7 +63,16 @@ export class GameUI {
         this.ctx.save();
         this.ctx.translate(-Math.floor(this.game.camera.x), -Math.floor(this.game.camera.y));
 
+        if (!this.game.building || !this.game.building.floors) {
+             this.ctx.restore();
+             return;
+        }
+
         const f = this.game.building.floors[this.game.player.z];
+        if (!f || !f.map) {
+             this.ctx.restore();
+             return;
+        }
         
         // CULLING
         const tSize = CONFIG.TILE;
@@ -160,17 +169,20 @@ export class GameUI {
 
         this.ctx.textAlign = 'center';
         this.ctx.font = '8px monospace';
-        for(let i = this.game.building.floors.length - 1; i >= 0; i--) {
-            const y = 34 + ((this.game.building.floors.length - 1 - i) * 16);
-            if (this.game.player.z === i) {
-                this.ctx.fillStyle = Palette.text;
-                this.ctx.fillRect(panelX + 4, y - 6, panelW - 8, 12);
-                this.ctx.fillStyle = '#000';
-            } else {
-                this.ctx.fillStyle = '#64748b';
+        
+        if (this.game.building && this.game.building.floors) {
+            for(let i = this.game.building.floors.length - 1; i >= 0; i--) {
+                const y = 34 + ((this.game.building.floors.length - 1 - i) * 16);
+                if (this.game.player.z === i) {
+                    this.ctx.fillStyle = Palette.text;
+                    this.ctx.fillRect(panelX + 4, y - 6, panelW - 8, 12);
+                    this.ctx.fillStyle = '#000';
+                } else {
+                    this.ctx.fillStyle = '#64748b';
+                }
+                let label = i === 0 ? this.game.getLine('LOBBY') : (i === 1 ? this.game.getLine('CAFE') : `F-${i}`);
+                this.ctx.fillText(label, panelX + (panelW/2), y + 2);
             }
-            let label = i === 0 ? this.game.getLine('LOBBY') : (i === 1 ? this.game.getLine('CAFE') : `F-${i}`);
-            this.ctx.fillText(label, panelX + (panelW/2), y + 2);
         }
         this.ctx.textAlign = 'left';
 

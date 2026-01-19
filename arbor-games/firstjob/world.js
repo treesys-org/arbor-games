@@ -14,6 +14,9 @@ export class Building {
     }
 
     generate(deptNames) {
+        // Clear previous floors to avoid appending endlessly
+        this.floors = [];
+
         // Floor 0: Lobby
         this.floors.push(this.makeLobby());
         
