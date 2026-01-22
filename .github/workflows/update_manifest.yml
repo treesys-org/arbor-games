@@ -1,4 +1,3 @@
-
 name: Update Arcade Manifest
 
 on:
@@ -25,18 +24,10 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Prepare Builder Script
-        run: |
-          echo "Renaming builder script for execution..."
-          cp game_builder.txt game_builder.py
-
       - name: Generate Manifest
         run: |
           echo "Running Arcade Builder..."
           python game_builder.py
-          
-          echo "Cleaning up..."
-          rm game_builder.py
 
       - name: Commit Changes
         uses: stefanzweifel/git-auto-commit-action@v5
