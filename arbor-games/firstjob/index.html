@@ -1,19 +1,17 @@
-
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>First Job: Workstation</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=VT323&display=swap" rel="stylesheet">
     <style>
         :root {
             --bezel: #1e293b;
             --screen-bg: #050a14;
             --led-on: #ef4444;
             --led-off: #450a0a;
+            --cyan: #22d3ee;
+            --slate-900: #0f172a;
         }
         body {
             background-color: #020617;
@@ -22,18 +20,21 @@
                 linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
             background-size: 100% 100%, 40px 40px, 40px 40px;
-            font-family: 'Chakra Petch', sans-serif;
+            font-family: system-ui, sans-serif;
             overflow: hidden;
             touch-action: none;
             display: flex;
             align-items: center;
             justify-content: center;
             height: 100vh;
-            height: 100dvh;
             color: white;
             user-select: none;
             -webkit-user-select: none;
+            margin: 0;
         }
+
+        /* HELPER */
+        .hidden { display: none !important; }
 
         /* --- CONSOLE SHELL (Unlocked Dimensions) --- */
         .console-shell {
@@ -58,6 +59,7 @@
             justify-content: space-between;
             gap: 2rem;
             position: relative;
+            box-sizing: border-box;
         }
 
         /* --- SCREEN --- */
@@ -77,6 +79,7 @@
             
             /* UPDATED: Added margin to clear top bezel text */
             margin-top: 30px; 
+            box-sizing: border-box;
         }
 
         /* CRT Effects */
@@ -97,6 +100,14 @@
             border-radius: 4px;
             box-shadow: 0 0 20px rgba(14, 165, 233, 0.1);
         }
+
+        /* PAUSE BUTTON */
+        #btn-pause {
+            position: absolute; top: 1rem; right: 1rem; z-index: 40;
+            color: #155e75; background: none; border: none; font-family: monospace;
+            font-size: 1.5rem; font-weight: bold; cursor: pointer;
+        }
+        #btn-pause:hover { color: #22d3ee; }
 
         /* --- INPUT OVERLAY FOR TASKS --- */
         #task-input-layer {
@@ -154,7 +165,7 @@
         .term-header {
             background: #22d3ee;
             color: #000;
-            font-family: 'VT323', monospace;
+            font-family: monospace;
             padding: 4px 8px;
             font-size: 1.2rem;
             font-weight: bold;
@@ -162,7 +173,7 @@
 
         .term-body {
             padding: 20px;
-            font-family: 'VT323', monospace;
+            font-family: monospace;
         }
 
         #task-prompt-text {
@@ -178,11 +189,12 @@
             border: none;
             border-bottom: 2px solid #22d3ee;
             color: #22d3ee;
-            font-family: 'VT323', monospace;
+            font-family: monospace;
             font-size: 2rem;
             padding: 10px;
             outline: none;
             text-transform: uppercase;
+            box-sizing: border-box;
         }
 
         #task-answer-input:disabled {
@@ -197,7 +209,7 @@
             color: #22d3ee;
             border: 1px solid #22d3ee;
             padding: 10px;
-            font-family: 'Chakra Petch', sans-serif;
+            font-family: system-ui, sans-serif;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.2s;
@@ -223,6 +235,9 @@
             gap: 2rem;
             transition: transform 0.3s ease;
         }
+        
+        .control-desc { font-size: 0.75rem; color: #64748b; margin-top: 1rem; text-align: center; font-family: monospace; }
+        @media(max-width: 768px) { .control-desc { display: none; } }
 
         /* Scale controls on larger screens */
         @media (min-width: 1280px) {
@@ -264,6 +279,9 @@
             gap: 20px;
             transform: rotate(-10deg);
         }
+        .action-col { display: flex; flex-direction: column; align-items: center; }
+        .action-label { font-size: 10px; color: #64748b; font-weight: bold; margin-top: 0.5rem; }
+        
         .action-btn {
             width: 60px; height: 60px;
             border-radius: 50%;
@@ -306,6 +324,7 @@
                 padding: 0 20px;
                 height: 40vh; /* Bottom half for controls */
                 transform: none !important; /* Reset scale for mobile */
+                box-sizing: border-box;
             }
             .d-pad-grid {
                 transform: scale(1.2); /* Bigger buttons on mobile */
@@ -323,15 +342,39 @@
             text-transform: uppercase;
             z-index: 50; /* Z-INDEX FIX */
         }
+        
+        /* Start Screen */
+        #start-screen {
+            position: absolute; inset: 0; z-index: 50;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: #0f172a; color: #22d3ee; padding: 1.5rem;
+        }
+        #start-screen h1 {
+            font-size: 2.25rem; font-weight: 700; margin-bottom: 1rem; font-family: monospace; letter-spacing: -0.05em; border-bottom: 4px solid #06b6d4; padding-bottom: 0.5rem;
+        }
+        @media(min-width: 768px) { #start-screen h1 { font-size: 3.75rem; } }
+        
+        #start-desc {
+            font-size: 0.875rem; margin-bottom: 2rem; text-align: center; max-width: 28rem; font-family: monospace; opacity: 0.8; line-height: 1.625;
+        }
+        @media(min-width: 768px) { #start-desc { font-size: 1rem; } }
+        
+        #btn-start {
+            padding: 1rem 2rem; background: #0891b2; color: white; font-weight: 700; font-family: monospace; font-size: 1.25rem; letter-spacing: 0.1em;
+            box-shadow: 0 0 20px rgba(8,145,178,0.5); transition: all 0.2s; text-transform: uppercase; border: none; cursor: pointer;
+        }
+        #btn-start:hover { background: #06b6d4; }
+        #btn-start:active { transform: scale(0.95); }
+
     </style>
 </head>
 <body>
 
     <!-- UI: Start Screen -->
-    <div id="start-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-900 text-cyan-400 p-6">
-        <h1 class="text-4xl md:text-6xl font-bold mb-4 font-mono tracking-tighter border-b-4 border-cyan-500 pb-2">FIRST JOB</h1>
-        <p id="start-desc" class="text-sm md:text-base mb-8 text-center max-w-md font-mono opacity-80 leading-relaxed"></p>
-        <button id="btn-start" class="px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-bold font-mono text-xl tracking-widest shadow-[0_0_20px_rgba(8,145,178,0.5)] transition-all uppercase active:scale-95"></button>
+    <div id="start-screen">
+        <h1>FIRST JOB</h1>
+        <p id="start-desc"></p>
+        <button id="btn-start"></button>
     </div>
 
     <div class="console-shell">
@@ -346,13 +389,13 @@
                 <div id="btn-right" class="d-btn"></div>
                 <div id="btn-down" class="d-btn"></div>
             </div>
-            <div id="controls-dpad-desc" class="text-xs text-slate-500 mt-4 text-center hidden md:block font-mono"></div>
+            <div id="controls-dpad-desc" class="control-desc"></div>
         </div>
 
         <!-- SCREEN AREA -->
         <div class="screen-container">
             <!-- PAUSE BUTTON -->
-            <button id="btn-pause" class="absolute top-4 right-4 z-40 text-cyan-800 hover:text-cyan-400 font-mono text-2xl font-bold transition-colors">II</button>
+            <button id="btn-pause">II</button>
 
             <div class="crt-overlay"></div>
             
@@ -375,16 +418,16 @@
         <!-- ACTION BUTTONS AREA -->
         <div class="controls-area" style="justify-content: center;">
             <div class="action-group">
-                <div class="flex flex-col items-center">
+                <div class="action-col">
                     <div id="btn-b" class="action-btn">B</div>
-                    <div id="action-b-label" class="text-[10px] text-slate-500 font-bold mt-2">BACK</div>
+                    <div id="action-b-label" class="action-label">BACK</div>
                 </div>
-                <div class="flex flex-col items-center">
+                <div class="action-col">
                     <div id="btn-a" class="action-btn">A</div>
-                    <div id="action-a-label" class="text-[10px] text-slate-500 font-bold mt-2">ACT</div>
+                    <div id="action-a-label" class="action-label">ACT</div>
                 </div>
             </div>
-            <div id="controls-action-desc" class="text-xs text-slate-500 mt-4 text-center hidden md:block font-mono"></div>
+            <div id="controls-action-desc" class="control-desc"></div>
         </div>
     </div>
 

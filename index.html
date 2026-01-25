@@ -1,29 +1,157 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Arbor Games Arcade</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script type="importmap">
-    {
-      "imports": {
-        "rxjs": "https://esm.sh/rxjs@7.8.1",
-        "rxjs/operators": "https://esm.sh/rxjs@7.8.1/operators",
-        "rxjs/ajax": "https://esm.sh/rxjs@7.8.1/ajax",
-        "rxjs/webSocket": "https://esm.sh/rxjs@7.8.1/webSocket",
-        "rxjs/testing": "https://esm.sh/rxjs@7.8.1/testing",
-        "rxjs/fetch": "https://esm.sh/rxjs@7.8.1/fetch",
-        "react": "https://esm.sh/react@18.3.1",
-        "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
-        "react-dom/client": "https://esm.sh/react-dom@18.3.1/client"
-      }
-    }
-    </script>
+    <style>
+        :root {
+            --bg-color: #171717;
+            --card-bg: #262626;
+            --text-color: #ffffff;
+            --accent-color: #22c55e;
+            --text-secondary: #a3a3a3;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-top: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin: 0;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+        
+        h1 span {
+            color: var(--accent-color);
+        }
+
+        p.subtitle {
+            color: var(--text-secondary);
+            margin-top: 10px;
+            font-size: 1.1rem;
+        }
+
+        #game-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .game-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            text-decoration: none;
+            color: inherit;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid #404040;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .game-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            border-color: var(--accent-color);
+        }
+
+        .icon {
+            font-size: 3.5rem;
+            margin-bottom: 16px;
+            display: block;
+        }
+
+        .game-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .game-desc {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .loading {
+            margin-top: 50px;
+            color: var(--text-secondary);
+            font-family: monospace;
+        }
+
+        footer {
+            margin-top: auto;
+            padding-top: 40px;
+            color: #525252;
+            font-size: 0.8rem;
+        }
+    </style>
 </head>
-<body class="bg-neutral-900 text-white">
-    <div id="root"></div>
-    <!-- Entry point for the React application -->
-    <script type="module" src="./index.tsx"></script>
+<body>
+
+    <header>
+        <h1>ARBOR <span>GAMES</span></h1>
+        <p class="subtitle">Decentralized Context-Aware Arcade</p>
+    </header>
+
+    <div id="game-list">
+        <div class="loading">Loading Cartridges...</div>
+    </div>
+
+    <footer>
+        Arbor Games v2.0 - Pure JS Engine
+    </footer>
+
+    <script>
+        async function loadGames() {
+            const container = document.getElementById('game-list');
+            try {
+                const response = await fetch('./arbor-games/manifest.json');
+                if (!response.ok) throw new Error("Manifest not found");
+                
+                const games = await response.json();
+                container.innerHTML = ''; // Clear loading
+
+                games.forEach(game => {
+                    const card = document.createElement('a');
+                    card.className = 'game-card';
+                    card.href = game.path;
+                    
+                    card.innerHTML = `
+                        <span class="icon">${game.icon}</span>
+                        <div class="game-title">${game.name}</div>
+                        <div class="game-desc">${game.description}</div>
+                    `;
+                    
+                    container.appendChild(card);
+                });
+            } catch (e) {
+                container.innerHTML = `<div style="color: #ef4444; text-align:center;">Error loading games manifest.<br>${e.message}</div>`;
+            }
+        }
+
+        window.onload = loadGames;
+    </script>
 </body>
 </html>

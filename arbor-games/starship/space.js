@@ -1,5 +1,6 @@
 
 
+
 /**
  * SPACE.JS
  * Top-down spaceship exploration.
@@ -261,7 +262,7 @@ export class SpaceEngine {
 
             // Sector Label
             ctx.fillStyle = '#fff';
-            ctx.font = 'bold 80px "Share Tech Mono"';
+            ctx.font = 'bold 80px monospace';
             ctx.globalAlpha = 0.15;
             ctx.textAlign = 'center';
             ctx.fillText(sys.name, sys.x, sys.y);
@@ -311,7 +312,7 @@ export class SpaceEngine {
                 // UI Label
                 if (isActive) {
                     ctx.fillStyle = '#22c55e';
-                    ctx.font = 'bold 16px "Orbitron"';
+                    ctx.font = 'bold 16px system-ui, sans-serif';
                     ctx.textAlign = 'center';
                     ctx.fillText(p.data.title.toUpperCase(), p.x, p.y - p.radius - 30);
                     
@@ -331,7 +332,7 @@ export class SpaceEngine {
             const scale = 1 + Math.sin(Date.now() * 0.01) * 0.1;
             ctx.scale(scale, scale);
             ctx.fillStyle = '#22c55e';
-            ctx.font = 'bold 14px "Orbitron"';
+            ctx.font = 'bold 14px system-ui, sans-serif';
             ctx.textAlign = 'center';
             ctx.shadowColor = '#000';
             ctx.shadowBlur = 4;

@@ -1,15 +1,12 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Starship Learner: Odyssey</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
         body { 
-            font-family: 'Share Tech Mono', monospace; 
+            font-family: monospace; 
             overflow: hidden; 
             background: #000; 
             color: white; 
@@ -17,9 +14,13 @@
             user-select: none; 
             -webkit-user-select: none;
             overscroll-behavior: none;
+            margin: 0;
         }
         #game-canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
         
+        /* Helper */
+        .hidden { display: none !important; }
+
         /* CRT Scanline Effect */
         .crt::before {
             content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
@@ -39,7 +40,12 @@
             backdrop-filter: blur(4px); 
             pointer-events: auto; 
             box-shadow: 0 0 15px rgba(14, 165, 233, 0.2);
+            top: 1rem; left: 1rem; width: 12rem;
         }
+        .hud-label { font-size: 10px; color: #94a3b8; letter-spacing: 0.1em; }
+        #hud-vel { font-size: 1.875rem; font-weight: 700; color: #22d3ee; font-family: system-ui, sans-serif; }
+        .vel-bar-bg { height: 4px; width: 100%; background: #1e293b; margin-top: 0.5rem; }
+        .vel-bar-fill { height: 100%; background: #0ea5e9; width: 50%; }
 
         /* Dialogue Box */
         #dialogue-box {
@@ -51,9 +57,11 @@
             padding: 20px; display: none; z-index: 50; pointer-events: auto;
             border-radius: 4px;
         }
-        #dialogue-speaker { color: #22c55e; font-family: 'Orbitron', sans-serif; font-weight: 900; margin-bottom: 8px; text-transform: uppercase; font-size: 1rem; border-bottom: 1px solid #22c55e; display: inline-block; padding-bottom: 4px; }
+        #dialogue-speaker { color: #22c55e; font-family: system-ui, sans-serif; font-weight: 900; margin-bottom: 8px; text-transform: uppercase; font-size: 1rem; border-bottom: 1px solid #22c55e; display: inline-block; padding-bottom: 4px; }
         #dialogue-text { font-size: 1.1rem; line-height: 1.4; color: #fff; text-shadow: 0 0 5px rgba(255,255,255,0.5); }
-        
+        .dialogue-hint { text-align: right; font-size: 10px; color: #22c55e; margin-top: 1rem; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% {opacity:0.6;} 50% {opacity:1;} 100% {opacity:0.6;} }
+
         /* Platformer HUD */
         #health-bar {
             width: 200px; height: 16px; background: #0f172a; border: 2px solid #fff;
@@ -67,12 +75,48 @@
             position: absolute; top: 60px; left: 20px;
             font-size: 1.2rem; color: #facc15; font-weight: bold;
             text-shadow: 0 0 10px rgba(250, 204, 21, 0.8);
-            font-family: 'Orbitron';
+            font-family: system-ui, sans-serif;
         }
 
         /* Screens */
         .full-screen { position: absolute; inset: 0; background: #000; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; }
-        .hidden { display: none !important; }
+        
+        /* Loading Screen */
+        .loading-title { font-size: 3.75rem; margin-bottom: 1.5rem; color: #22d3ee; animation: pulse 2s infinite; font-weight: 900; font-family: sans-serif; letter-spacing: 0.1em; text-align: center; }
+        .loading-status { font-size: 0.875rem; font-family: monospace; color: #155e75; border: 1px solid #164e63; padding: 0.5rem 1rem; }
+
+        /* Prologue Screen */
+        #prologue-screen { padding: 2rem; background: #020617; overflow-y: auto; text-align: center; }
+        .prologue-content { max-width: 56rem; margin: 0 auto; padding: 2.5rem 0; }
+        .prologue-title {
+            font-size: 3rem; font-weight: 900; margin-bottom: 1.5rem; font-family: sans-serif; letter-spacing: 0.1em;
+            background: linear-gradient(to bottom, #22d3ee, #2563eb); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 15px rgba(34,211,238,0.5));
+        }
+        @media(min-width: 768px) { .prologue-title { font-size: 6rem; } }
+
+        .prologue-text { color: #cbd5e1; font-family: monospace; font-size: 1.125rem; margin-bottom: 3rem; max-width: 42rem; margin-left: auto; margin-right: auto; line-height: 1.6; }
+        .prologue-text p { margin-bottom: 1rem; }
+        
+        .controls-grid {
+            display: grid; grid-template-columns: 1fr; gap: 1.5rem; text-align: left;
+            background: rgba(15, 23, 42, 0.8); padding: 1.5rem; border: 1px solid #164e63;
+            box-shadow: 0 0 30px rgba(8,145,178,0.2); margin-top: 2rem;
+        }
+        @media(min-width: 768px) { .controls-grid { grid-template-columns: 1fr 1fr; } }
+        
+        .control-group-title { font-weight: 700; font-family: sans-serif; display: block; margin-bottom: 0.5rem; padding-bottom: 0.25rem; border-bottom: 1px solid; }
+        .title-cyan { color: #22d3ee; border-color: #155e75; }
+        .title-green { color: #4ade80; border-color: #166534; }
+        .control-desc { font-size: 0.875rem; color: #94a3b8; }
+
+        #btn-start {
+            margin-top: 3rem;
+            border: 2px solid #06b6d4; color: #06b6d4; background: transparent;
+            padding: 1.25rem 3rem; font-weight: 700; font-size: 1.5rem; text-transform: uppercase; letter-spacing: 0.2em; font-family: sans-serif; cursor: pointer; transition: all 0.3s;
+            position: relative; overflow: hidden;
+        }
+        #btn-start:hover { color: #000; background: #06b6d4; box-shadow: 0 0 30px #0ea5e9; }
 
         /* --- MOBILE CONTROLS --- */
         .touch-zone { 
@@ -95,7 +139,7 @@
             bottom: 60px; right: 40px; width: 100px; height: 100px;
             background: rgba(34, 197, 94, 0.2); border: 2px solid #22c55e; border-radius: 50%;
             display: flex; align-items: center; justify-content: center; color: #22c55e; font-weight: bold;
-            font-family: 'Orbitron'; font-size: 1.2rem; display: none;
+            font-family: system-ui, sans-serif; font-size: 1.2rem; display: none;
             box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
             animation: pulse 2s infinite;
         }
@@ -114,7 +158,7 @@
         #action-container { bottom: 30px; right: 30px; display: flex; gap: 20px; align-items: flex-end; }
         .act-btn {
             width: 90px; height: 90px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-weight: bold; font-family: 'Orbitron'; border: 2px solid rgba(255,255,255,0.5);
+            font-weight: bold; font-family: system-ui, sans-serif; border: 2px solid rgba(255,255,255,0.5);
             box-shadow: 0 0 15px rgba(255,255,255,0.2);
             font-size: 1.8rem;
             background: rgba(0,0,0,0.5);
@@ -132,15 +176,35 @@
             z-index: 60;
         }
 
+        /* Death Screen */
+        #death-screen {
+            position: absolute; inset: 0; background: rgba(69, 10, 10, 0.9); display: flex; align-items: center; justify-content: center; pointer-events: auto; backdrop-filter: blur(4px); z-index: 100;
+        }
+        .death-box { text-align: center; border: 4px solid #dc2626; padding: 2.5rem; background: #000; }
+        .death-title { font-size: 3rem; font-weight: 900; color: #ef4444; margin-bottom: 1rem; font-family: sans-serif; letter-spacing: -0.05em; line-height: 1; }
+        @media(min-width: 768px) { .death-title { font-size: 4.5rem; } }
+        
+        .death-desc { color: #fecaca; margin-bottom: 2.5rem; font-family: monospace; letter-spacing: 0.1em; }
+        
+        #btn-respawn {
+            background: white; color: black; border: 4px solid black; padding: 1rem 2rem; font-weight: 700; font-family: sans-serif; font-size: 1.25rem;
+            box-shadow: 6px 6px 0 #000; cursor: pointer; transition: transform 0.1s;
+        }
+        #btn-respawn:hover { background: #ef4444; color: white; }
+        #btn-respawn:active { transform: scale(0.95); }
+
+
         /* Rotation Warning */
         #rotate-warning {
             display: none; position: fixed; inset: 0; z-index: 9999;
             background: #020617; color: #0ea5e9;
             flex-direction: column; align-items: center; justify-content: center;
-            text-align: center; font-family: 'Orbitron', sans-serif;
+            text-align: center; font-family: system-ui, sans-serif;
         }
-
-        @keyframes pulse { 0% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(1); opacity: 0.8; } }
+        .rotate-icon { font-size: 3.75rem; margin-bottom: 1rem; animation: spin 2s linear infinite; }
+        .rotate-text { font-size: 1.25rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.5rem; }
+        .rotate-sub { font-size: 0.75rem; opacity: 0.7; font-family: monospace; color: white; }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         @media (min-width: 1024px) {
             .touch-zone { display: none !important; } 
@@ -157,50 +221,50 @@
 
     <!-- ROTATION WARNING -->
     <div id="rotate-warning">
-        <div class="text-6xl mb-4 animate-spin">⟳</div>
-        <h1 class="text-xl mb-2 uppercase font-bold tracking-widest">Landscape Mode<br>Required</h1>
-        <p class="text-xs opacity-70 font-mono text-white">Initialize Flight Systems</p>
+        <div class="rotate-icon">⟳</div>
+        <h1 class="rotate-text">Landscape Mode<br>Required</h1>
+        <p class="rotate-sub">Initialize Flight Systems</p>
     </div>
 
     <canvas id="game-canvas"></canvas>
 
     <!-- LOADING -->
     <div id="loading-screen" class="full-screen">
-        <div class="text-6xl mb-6 text-cyan-400 animate-pulse font-black font-[Orbitron] tracking-widest text-center">SYSTEM BOOT</div>
-        <div id="loading-status" class="text-sm font-mono text-cyan-800 border border-cyan-900 px-4 py-2">Establishing Neural Link...</div>
+        <div class="loading-title">SYSTEM BOOT</div>
+        <div id="loading-status" class="loading-status">Establishing Neural Link...</div>
     </div>
 
     <!-- PROLOGUE -->
-    <div id="prologue-screen" class="full-screen hidden p-8 text-center bg-slate-950 overflow-y-auto">
-        <div class="max-w-4xl mx-auto py-10">
-            <h1 class="text-5xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-b from-cyan-400 to-blue-600 mb-6 font-[Orbitron] tracking-widest drop-shadow-[0_0_15px_rgba(34,211,238,0.5)]">STARSHIP<br>LEARNER</h1>
-            <div id="prologue-text" class="space-y-4 font-mono max-w-2xl mx-auto text-slate-300 mb-12 text-lg">
+    <div id="prologue-screen" class="full-screen hidden">
+        <div class="prologue-content">
+            <h1 class="prologue-title">STARSHIP<br>LEARNER</h1>
+            <div id="prologue-text" class="prologue-text">
                 <p>Knowledge archives have been scattered across the galaxy.</p>
                 <p>Pilot your ship. Land on planets. Retrieve the data.</p>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-left bg-slate-900/80 p-6 border border-cyan-900 shadow-[0_0_30px_rgba(8,145,178,0.2)] mt-8">
+                
+                <div class="controls-grid">
                     <div>
-                        <span class="text-cyan-400 font-bold font-[Orbitron] border-b border-cyan-800 block mb-2">FLIGHT CONTROLS</span>
-                        <span class="text-sm text-slate-400">WASD / Left Stick to Thrust<br>SPACE / 'LAND' to Land</span>
+                        <span class="control-group-title title-cyan">FLIGHT CONTROLS</span>
+                        <span class="control-desc">WASD / Left Stick to Thrust<br>SPACE / 'LAND' to Land</span>
                     </div>
                     <div>
-                        <span class="text-green-400 font-bold font-[Orbitron] border-b border-green-800 block mb-2">SURFACE CONTROLS</span>
-                        <span class="text-sm text-slate-400">Arrows / D-Pad to Move<br>UP / A to Jump<br>Z to Shoot</span>
+                        <span class="control-group-title title-green">SURFACE CONTROLS</span>
+                        <span class="control-desc">Arrows / D-Pad to Move<br>UP / A to Jump<br>Z to Shoot</span>
                     </div>
                 </div>
             </div>
-            <button id="btn-start" class="relative overflow-hidden group border-2 border-cyan-500 text-cyan-500 px-12 py-5 font-bold text-2xl uppercase tracking-[0.2em] font-[Orbitron] transition-all hover:text-black hover:shadow-[0_0_30px_#0ea5e9]">
-                <span class="absolute inset-0 w-full h-full bg-cyan-500 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-300 ease-out"></span>
-                <span class="relative z-10">INITIALIZE</span>
+            <button id="btn-start">
+                <span>INITIALIZE</span>
             </button>
         </div>
     </div>
 
     <!-- UI: SPACE -->
     <div id="ui-space" class="ui-layer hidden">
-        <div class="hud-panel top-4 left-4 w-48">
-            <div class="text-[10px] text-slate-400 tracking-widest">VELOCITY</div>
-            <div id="hud-vel" class="text-3xl font-bold text-cyan-400 font-[Orbitron]">0 KM/S</div>
-            <div class="h-1 w-full bg-slate-800 mt-2"><div class="h-full bg-cyan-500 w-1/2"></div></div>
+        <div class="hud-panel">
+            <div class="hud-label">VELOCITY</div>
+            <div id="hud-vel">0 KM/S</div>
+            <div class="vel-bar-bg"><div class="vel-bar-fill"></div></div>
         </div>
         
         <!-- Mobile Space Controls -->
@@ -219,7 +283,7 @@
         <div id="dialogue-box">
             <div id="dialogue-speaker">MARCIANO</div>
             <div id="dialogue-text">...</div>
-            <div class="text-right text-[10px] text-green-500 mt-4 animate-pulse">TAP TO CONTINUE ▶</div>
+            <div class="dialogue-hint">TAP TO CONTINUE ▶</div>
         </div>
 
         <div id="btn-interact" class="touch-zone">TALK</div>
@@ -235,11 +299,11 @@
         </div>
 
         <!-- Death Screen -->
-        <div id="death-screen" class="absolute inset-0 bg-red-950/90 flex items-center justify-center hidden pointer-events-auto backdrop-blur-sm z-[100]">
-            <div class="text-center border-4 border-red-600 p-10 bg-black">
-                <h2 class="text-5xl md:text-7xl font-black text-red-500 mb-4 font-[Orbitron] tracking-tighter">CRITICAL<br>FAILURE</h2>
-                <p class="text-red-200 mb-10 font-mono tracking-widest">SUIT INTEGRITY LOST</p>
-                <button id="btn-respawn" class="bg-white hover:bg-red-500 hover:text-white text-black px-8 py-4 font-bold border-4 border-black shadow-[6px_6px_0_#000] font-[Orbitron] text-xl transition-transform active:scale-95">REBOOT SYSTEM</button>
+        <div id="death-screen" class="hidden">
+            <div class="death-box">
+                <h2 class="death-title">CRITICAL<br>FAILURE</h2>
+                <p class="death-desc">SUIT INTEGRITY LOST</p>
+                <button id="btn-respawn">REBOOT SYSTEM</button>
             </div>
         </div>
     </div>

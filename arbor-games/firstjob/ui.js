@@ -1,4 +1,5 @@
 
+
 /**
  * UI.JS
  * Rendering, HUD, and Visual Effects.
@@ -119,7 +120,7 @@ export class GameUI {
         });
 
         // Draw Floating Text in world space
-        this.ctx.font = '10px "Chakra Petch"';
+        this.ctx.font = '10px system-ui, sans-serif';
         this.game.floatingTexts.texts.forEach(t => {
             this.ctx.fillStyle = t.color;
             this.ctx.fillText(t.text, t.x, t.y);
@@ -136,7 +137,7 @@ export class GameUI {
         this.ctx.fillStyle = 'rgba(2, 6, 23, 0.95)';
         this.ctx.fillRect(0,0,CONFIG.W, 24);
         this.ctx.fillStyle = Palette.text;
-        this.ctx.font = '10px "Chakra Petch", monospace';
+        this.ctx.font = '10px system-ui, sans-serif';
         this.ctx.fillText(`$${this.game.money}`, 10, 15);
         
         // Stress
@@ -206,7 +207,7 @@ export class GameUI {
             const px = CONFIG.W - 80, py = CONFIG.H - 60;
             this.ctx.fillRect(px, py + floatY, w, h);
             this.ctx.strokeStyle = '#fff'; this.ctx.lineWidth = 3; this.ctx.strokeRect(px, py + floatY, w, h);
-            this.ctx.fillStyle = '#fff'; this.ctx.font = '10px "Chakra Petch"'; this.ctx.textAlign = 'center';
+            this.ctx.fillStyle = '#fff'; this.ctx.font = '10px system-ui, sans-serif'; this.ctx.textAlign = 'center';
             this.ctx.fillText(this.game.getLine('INCOMING_CALL'), px + w/2, py + 15 + floatY);
             const scale = 1 + Math.sin(this.game.frame * 0.1) * 0.1;
             this.ctx.font = `bold ${10 * scale}px monospace`;
@@ -221,7 +222,7 @@ export class GameUI {
             this.ctx.fillStyle = Palette.phone_bg; this.ctx.fillRect(x, y, w, h);
             this.ctx.strokeStyle = '#334155'; this.ctx.strokeRect(x,y,w,h);
             this.ctx.fillStyle = Palette.phone_screen; this.ctx.fillRect(x+10, y+10, w-20, h-20);
-            this.ctx.fillStyle = Palette.text; this.ctx.font = '10px "Chakra Petch"';
+            this.ctx.fillStyle = Palette.text; this.ctx.font = '10px system-ui, sans-serif';
             this.ctx.fillText(this.game.getLine('FROM', {caller: this.game.phone.caller}), x+15, y+25);
             this.ctx.fillStyle = '#fff'; this.ctx.font = '9px monospace';
             const words = this.game.phone.msg.split(' ');
@@ -241,7 +242,7 @@ export class GameUI {
         const x = (CONFIG.W/2) - (w/2); const y = (CONFIG.H/2) - (h/2);
         this.ctx.fillStyle = Palette.floor_cafe; this.ctx.fillRect(x, y, w, h);
         this.ctx.strokeStyle = '#fff'; this.ctx.strokeRect(x, y, w, h);
-        this.ctx.fillStyle = '#fff'; this.ctx.font = '12px "Chakra Petch"'; this.ctx.textAlign = 'center';
+        this.ctx.fillStyle = '#fff'; this.ctx.font = '12px system-ui, sans-serif'; this.ctx.textAlign = 'center';
         this.ctx.fillText(this.game.getLine('SHOP_TITLE'), x + w/2, y + 20);
         this.ctx.font = '10px monospace'; this.ctx.textAlign = 'left';
         let iy = y + 40;
@@ -262,7 +263,7 @@ export class GameUI {
         this.ctx.fillStyle = '#000'; this.ctx.fillRect(0,0,CONFIG.W,CONFIG.H);
         const line = this.game.prologueLines[this.game.prologueIndex];
         this.ctx.fillStyle = Palette.text; this.ctx.textAlign = 'center';
-        this.ctx.font = '16px "Chakra Petch"'; this.ctx.fillText(line, CONFIG.W/2, CONFIG.H/2);
+        this.ctx.font = '16px system-ui, sans-serif'; this.ctx.fillText(line, CONFIG.W/2, CONFIG.H/2);
         this.ctx.font = '10px monospace'; this.ctx.fillStyle = '#94a3b8';
         if (Math.floor(this.game.frame / 30) % 2 === 0) { this.ctx.fillText(`[${this.game.getLine('PRESS_A')}]`, CONFIG.W/2, CONFIG.H - 40); }
         this.ctx.textAlign = 'left';
@@ -276,7 +277,7 @@ export class GameUI {
         this.ctx.fillStyle = '#ef4444'; this.ctx.beginPath(); this.ctx.arc(50, 30, 3, 0, Math.PI*2); this.ctx.fill();
         this.ctx.fillStyle = '#fff'; this.ctx.font = '8px monospace'; this.ctx.fillText("REC", 58, 33);
         this.ctx.fillText(this.game.data.company.toUpperCase() + " HR", 50, 130); 
-        const cx = CONFIG.W/2; this.ctx.fillStyle = Palette.text; this.ctx.textAlign = 'center'; this.ctx.font = '10px "Chakra Petch"';
+        const cx = CONFIG.W/2; this.ctx.fillStyle = Palette.text; this.ctx.textAlign = 'center'; this.ctx.font = '10px system-ui, sans-serif';
         if (this.game.state === 'INTERVIEW_FEEDBACK') {
              this.ctx.fillStyle = '#facc15'; this.ctx.fillText(this.game.lastInterviewFeedback, cx, 150);
              this.ctx.fillStyle = '#fff'; if (Math.floor(this.game.frame / 30) % 2 === 0) { this.ctx.fillText(`[${this.game.getLine('PRESS_A')}]`, cx, 170); }
@@ -288,14 +289,14 @@ export class GameUI {
         this.ctx.fillStyle = '#000'; this.ctx.fillRect(0,0,CONFIG.W,CONFIG.H);
         const cx = CONFIG.W/2; const cy = CONFIG.H/2; const t = this.game.frame * 0.1;
         this.ctx.strokeStyle = Palette.text; this.ctx.beginPath(); this.ctx.arc(cx, cy, 20, t, t+4); this.ctx.stroke();
-        this.ctx.fillStyle = '#fff'; this.ctx.font = '12px "Chakra Petch", monospace'; this.ctx.textAlign = 'center';
+        this.ctx.fillStyle = '#fff'; this.ctx.font = '12px system-ui, sans-serif'; this.ctx.textAlign = 'center';
         this.ctx.fillText(text, cx, cy + 40); this.ctx.textAlign = 'left';
     }
 
     drawGameOver() {
         this.ctx.fillStyle = '#450a0a'; this.ctx.fillRect(0,0,CONFIG.W,CONFIG.H);
         this.ctx.fillStyle = '#fff'; this.ctx.textAlign = 'center';
-        this.ctx.font = '20px "Chakra Petch"'; this.ctx.fillText(this.game.getLine('GAME_OVER'), CONFIG.W/2, CONFIG.H/2 - 20);
+        this.ctx.font = '20px system-ui, sans-serif'; this.ctx.fillText(this.game.getLine('GAME_OVER'), CONFIG.W/2, CONFIG.H/2 - 20);
         this.ctx.font = '12px monospace'; this.ctx.fillStyle = '#fca5a5';
         this.ctx.fillText(this.game.msg.text, CONFIG.W/2, CONFIG.H/2 + 10);
         this.ctx.fillStyle = '#38bdf8';

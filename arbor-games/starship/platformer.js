@@ -1,4 +1,5 @@
 
+
 /**
  * PLATFORMER.JS
  * Side-scrolling planetary exploration mode.
@@ -636,7 +637,7 @@ export class PlatformerEngine {
                  const bob = Math.sin(Date.now()*0.005) * 3;
                  ctx.translate(0, bob);
                  
-                 ctx.font = 'bold 8px "Orbitron"'; 
+                 ctx.font = 'bold 8px system-ui, sans-serif'; 
                  ctx.fillStyle = '#facc15'; ctx.textAlign = 'center';
                  ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
                  

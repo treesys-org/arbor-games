@@ -1,4 +1,5 @@
 
+
 /**
  * ENGINE.JS
  * The core logic for Arbor Classroom.
@@ -289,7 +290,7 @@ class GameEngine {
             ctx.beginPath(); ctx.arc(bubbleX + 25, bubbleY + 70, 4, 0, Math.PI*2); ctx.stroke(); ctx.fill();
 
             ctx.fillStyle = '#000';
-            ctx.font = '30px VT323';
+            ctx.font = '30px monospace';
             const dots = '.'.repeat((Math.floor(this.frame / 20) % 3) + 1);
             ctx.fillText(dots, bubbleX + 25, bubbleY + 30);
         }
@@ -321,7 +322,7 @@ class GameEngine {
 
     drawBoardContent(ctx) {
         ctx.fillStyle = Colors.term_green;
-        ctx.font = '20px VT323';
+        ctx.font = '20px monospace';
         ctx.textAlign = 'left';
         ctx.fillText(this.getLine('TOPICS'), 180, 85);
         if (!this.lessonData.concepts) return;
@@ -348,7 +349,7 @@ class GameEngine {
         ctx.fillRect(x, y, w, h);
         ctx.strokeRect(x, y, w, h);
         ctx.fillStyle = '#fbbf24';
-        ctx.font = '16px VT323';
+        ctx.font = '16px monospace';
         ctx.textAlign = 'left';
         ctx.fillText(this.getLine('RANK'), x + 10, y + 25);
         ctx.beginPath(); ctx.moveTo(x, y+35); ctx.lineTo(x+w, y+35); ctx.stroke();

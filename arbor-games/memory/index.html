@@ -4,14 +4,40 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Memory Garden: Overgrowth</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;700;900&display=swap" rel="stylesheet">
     <style>
-        :root { --glass: rgba(255, 255, 255, 0.1); --glass-border: rgba(255, 255, 255, 0.2); }
-        body { font-family: 'Outfit', sans-serif; background: #0f172a; overflow: hidden; user-select: none; }
+        :root { --glass: rgba(255, 255, 255, 0.1); --glass-border: rgba(255, 255, 255, 0.2); --accent: #34d399; }
+        body { font-family: system-ui, sans-serif; background: #0f172a; overflow: hidden; user-select: none; color: white; margin: 0; }
+        
+        /* HELPER CLASSES used by JS */
+        .hidden { display: none !important; }
+        .hidden-fade { opacity: 0; pointer-events: none; }
+        .text-red-500 { color: #ef4444 !important; }
+        .opacity-0 { opacity: 0; }
         
         /* 3D Card Styles */
-        .perspective-container { perspective: 1200px; }
+        .perspective-container { perspective: 1200px; flex: 1; display: flex; align-items: flex-start; justify-content: center; position: relative; z-index: 0; padding-top: 1rem; }
+        
+        /* Grid Layout */
+        #card-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+            width: 100%;
+            max-width: 95vw;
+            margin: 0 auto;
+            max-height: 75vh;
+            align-content: start;
+        }
+        @media(min-width: 768px) {
+            #card-grid { grid-template-columns: repeat(4, 1fr); gap: 1rem; padding-top: 2rem; }
+        }
+
+        .card-container { width: 100%; height: 5rem; } /* Mobile default */
+        @media(min-width: 768px) { .card-container { height: 7rem; } }
+        @media(min-width: 1024px) { .card-container { height: 8rem; } }
+        @media(min-width: 1280px) { .card-container { height: 10rem; } }
+
+
         .card { 
             position: relative; width: 100%; height: 100%; 
             transform-style: preserve-3d; 
@@ -48,8 +74,11 @@
             justify-content: center;
             word-wrap: break-word;
         }
+        
+        /* Face Back Colors via JS (border-b-4 equiv) */
+        .border-emerald-500 { border-bottom: 4px solid #10b981; }
+        .border-yellow-500 { border-bottom: 4px solid #eab308; }
 
-        /* Mobile Adjustments for Cards */
         @media (max-width: 640px) {
             .card-face { border-radius: 0.5rem; border-width: 1px; }
             .face-back { padding: 4px; font-size: 0.7rem; }
@@ -63,13 +92,80 @@
 
         /* HUD & Overlay */
         #bg-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
-        .glass-panel { background: var(--glass); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); }
         
-        .combo-bar-container { width: 100%; height: 6px; background: rgba(0,0,0,0.5); border-radius: 99px; overflow: hidden; margin-top: 8px; }
+        #game-ui {
+            position: relative; z-index: 10; display: flex; flex-direction: column; height: 100vh; padding: 1rem; box-sizing: border-box;
+        }
+
+        header {
+            display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 0.5rem;
+            position: relative; z-index: 50; pointer-events: none; height: 4rem; flex-shrink: 0;
+        }
+        
+        .header-content { pointer-events: auto; }
+        
+        h1 {
+            font-size: 1.5rem; font-weight: 900; letter-spacing: -0.05em; line-height: 1; margin: 0;
+            background: linear-gradient(to right, #4ade80, #059669); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        @media(min-width: 768px) { h1 { font-size: 1.875rem; } }
+
+        #lesson-topic {
+            font-size: 0.6rem; color: #34d399; font-family: monospace; text-transform: uppercase; letter-spacing: 0.1em;
+            margin-top: 0.25rem; transition: opacity 1s; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        @media(min-width: 768px) { #lesson-topic { font-size: 0.75rem; } }
+
+        .score-box { text-align: right; pointer-events: auto; }
+        #score-label { font-size: 0.75rem; color: #9ca3af; font-weight: 700; text-transform: uppercase; }
+        #score-display { font-size: 1.5rem; font-weight: 900; font-family: monospace; line-height: 1; }
+        @media(min-width: 768px) { #score-display { font-size: 2.25rem; } }
+
+        .combo-bar-container { width: 5rem; height: 6px; background: rgba(0,0,0,0.5); border-radius: 99px; overflow: hidden; margin-top: 8px; margin-left: auto; }
+        @media(min-width: 768px) { .combo-bar-container { width: 8rem; } }
         .combo-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #facc15, #fbbf24); transition: width 0.2s linear; }
         
-        .overlay { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.9); transition: opacity 0.5s; backdrop-filter: blur(5px); }
-        .hidden-fade { opacity: 0; pointer-events: none; }
+        .overlay { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.9); transition: opacity 0.5s; backdrop-filter: blur(5px); padding: 1rem; }
+
+        /* Start Screen */
+        .start-container { text-align: center; padding: 2rem; max-width: 28rem; position: relative; }
+        .bg-icon {
+            position: absolute; top: -2.5rem; left: 50%; transform: translateX(-50%); font-size: 4.5rem; opacity: 0.2; filter: blur(4px);
+        }
+        @media(min-width: 768px) { .bg-icon { top: -5rem; font-size: 8rem; } }
+
+        .start-title {
+            font-size: 2.25rem; font-weight: 900; margin-bottom: 0.5rem; letter-spacing: -0.05em; color: #34d399; line-height: 1;
+        }
+        .start-title span { color: white; }
+        @media(min-width: 768px) { .start-title { font-size: 3.75rem; } }
+        
+        .start-desc { color: #9ca3af; margin-bottom: 2rem; font-family: monospace; font-size: 0.75rem; }
+        @media(min-width: 768px) { .start-desc { font-size: 0.875rem; } }
+
+        #loading-state { margin-bottom: 1rem; }
+        .spinner { width: 3rem; height: 3rem; border: 4px solid #10b981; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #loading-text { color: #6ee7b7; font-weight: 700; font-size: 0.875rem; animation: pulse 2s infinite; }
+        @keyframes pulse { 50% { opacity: 0.5; } }
+
+        #btn-start {
+            position: relative; padding: 1rem 2rem; background: #059669; color: white; font-weight: 700; font-size: 1.125rem; border: none; cursor: pointer; transition: all 0.2s; clip-path: polygon(10% 0, 100% 0, 100% 80%, 90% 100%, 0 100%, 0 20%); width: 100%;
+        }
+        @media(min-width: 768px) { #btn-start { width: auto; padding: 1.25rem 3rem; font-size: 1.25rem; } }
+        #btn-start:hover { background: #10b981; transform: scale(1.05); }
+        #btn-start:active { transform: scale(0.95); }
+
+        /* Victory Screen */
+        #victory-screen { text-align: center; }
+        #victory-title { font-size: 1.875rem; font-weight: 900; color: #facc15; margin-bottom: 0.5rem; text-shadow: 0 0 15px rgba(250,204,21,0.5); }
+        @media(min-width: 768px) { #victory-title { font-size: 3rem; } }
+        
+        .score-line { font-size: 1.25rem; color: white; margin-bottom: 0.5rem; }
+        .high-score-line { font-size: 1.125rem; color: #9ca3af; margin-bottom: 2rem; }
+        
+        #btn-replay { padding: 0.75rem 2rem; border: 2px solid white; background: transparent; color: white; font-weight: 700; cursor: pointer; transition: all 0.2s; font-size: 1rem; }
+        #btn-replay:hover { background: white; color: black; }
 
         /* ROTATION WARNING */
         #rotate-warning {
@@ -79,6 +175,7 @@
             flex-direction: column; align-items: center; justify-content: center;
             text-align: center; backdrop-filter: blur(10px);
         }
+        .rotate-icon { font-size: 4rem; margin-bottom: 1rem; }
         
         /* Enforce Portrait on Mobile for vertical garden growth */
         @media screen and (orientation: landscape) and (max-height: 500px) {
@@ -91,65 +188,62 @@
 
     <!-- ROTATION WARNING -->
     <div id="rotate-warning">
-        <div class="text-6xl mb-4">📱 ⟳</div>
-        <h1 id="rotate-title" class="text-2xl font-black mb-2 uppercase">Portrait Mode<br>Recommended</h1>
-        <p id="rotate-desc" class="text-sm opacity-70 font-mono">Let the garden grow tall.</p>
+        <div class="rotate-icon">📱 ⟳</div>
+        <h1 id="rotate-title" style="font-size: 1.5rem; font-weight: 900; margin-bottom: 0.5rem; text-transform: uppercase;">Portrait Mode<br>Recommended</h1>
+        <p id="rotate-desc" style="font-size: 0.875rem; opacity: 0.7; font-family: monospace;">Let the garden grow tall.</p>
     </div>
 
     <!-- PROCEDURAL BACKGROUND -->
     <canvas id="bg-canvas"></canvas>
 
     <!-- GAME HUD -->
-    <div id="game-ui" class="relative z-10 flex flex-col h-screen p-4 hidden">
-        <!-- Top Bar: Updated with Z-Index 50 and pointer-events-none -->
-        <header class="flex justify-between items-end mb-2 relative z-50 pointer-events-none h-16 shrink-0">
-            <div class="pointer-events-auto">
-                <h1 class="text-2xl md:text-3xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600">MEMORY<br>GARDEN</h1>
-                <p id="lesson-topic" class="text-[0.6rem] md:text-xs text-emerald-400 font-mono uppercase tracking-widest mt-1 opacity-0 transition-opacity duration-1000 max-w-[200px] truncate">...</p>
+    <div id="game-ui" class="hidden">
+        <header>
+            <div class="header-content">
+                <h1>MEMORY<br>GARDEN</h1>
+                <p id="lesson-topic" class="opacity-0">...</p>
             </div>
-            <div class="text-right pointer-events-auto">
-                <div id="score-label" class="text-xs text-gray-400 font-bold uppercase">Score</div>
-                <div id="score-display" class="text-2xl md:text-4xl font-black font-mono leading-none">0</div>
-                <div class="combo-bar-container w-20 md:w-32 ml-auto">
+            <div class="score-box">
+                <div id="score-label">Score</div>
+                <div id="score-display">0</div>
+                <div class="combo-bar-container">
                     <div id="combo-bar" class="combo-bar"></div>
                 </div>
             </div>
         </header>
 
         <!-- Grid -->
-        <main class="flex-1 perspective-container flex items-start justify-center relative z-0 pt-4 md:pt-8">
-            <!-- Decreased max-height to ensure header visibility and added margin top -->
-            <div id="card-grid" class="grid grid-cols-3 md:grid-cols-4 gap-3 md:gap-4 w-full max-w-[95vw] mx-auto max-h-[75vh] content-start">
+        <main class="perspective-container">
+            <div id="card-grid">
                 <!-- Cards Injected Here -->
             </div>
         </main>
     </div>
 
     <!-- START SCREEN -->
-    <div id="start-screen" class="overlay p-4">
-        <div class="text-center p-4 md:p-8 max-w-md relative">
-            <div class="absolute -top-10 md:-top-20 left-1/2 -translate-x-1/2 text-7xl md:text-9xl opacity-20 filter blur-sm">🌿</div>
-            <h1 class="text-4xl md:text-6xl font-black mb-2 tracking-tighter text-emerald-400">OVER<br><span class="text-white">GROWTH</span></h1>
-            <p class="text-gray-400 mb-8 font-mono text-xs md:text-sm">A High-Speed Memory Synthesis</p>
+    <div id="start-screen" class="overlay">
+        <div class="start-container">
+            <div class="bg-icon">🌿</div>
+            <h1 class="start-title">OVER<br><span>GROWTH</span></h1>
+            <p class="start-desc">A High-Speed Memory Synthesis</p>
             
             <div id="loading-state" class="hidden">
-                <div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p id="loading-text" class="animate-pulse text-emerald-300 font-bold text-sm">Consulting the Sage...</p>
+                <div class="spinner"></div>
+                <p id="loading-text">Consulting the Sage...</p>
             </div>
 
-            <button id="btn-start" class="group relative px-8 md:px-12 py-4 md:py-5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-lg md:text-xl rounded-none clip-path-polygon transition-all hover:scale-105 active:scale-95 w-full md:w-auto">
-                <span class="relative z-10">INITIALIZE</span>
-                <div class="absolute inset-0 bg-white/20 scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
+            <button id="btn-start">
+                <span>INITIALIZE</span>
             </button>
         </div>
     </div>
 
     <!-- VICTORY SCREEN -->
-    <div id="victory-screen" class="overlay hidden-fade p-4 text-center">
-        <h2 id="victory-title" class="text-3xl md:text-5xl font-black text-yellow-400 mb-2 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]">GARDEN BLOOMED</h2>
-        <p class="text-xl md:text-2xl text-white mb-2"><span id="final-score-label">Final Score: </span><span id="final-score">0</span></p>
-        <p class="text-lg text-gray-400 mb-8"><span id="high-score-label">High Score: </span><span id="high-score">0</span></p>
-        <button id="btn-replay" class="px-8 py-3 border-2 border-white text-white font-bold hover:bg-white hover:text-black transition-colors">
+    <div id="victory-screen" class="overlay hidden-fade">
+        <h2 id="victory-title">GARDEN BLOOMED</h2>
+        <p class="score-line"><span id="final-score-label">Final Score: </span><span id="final-score">0</span></p>
+        <p class="high-score-line"><span id="high-score-label">High Score: </span><span id="high-score">0</span></p>
+        <button id="btn-replay">
             REPLAY
         </button>
     </div>
