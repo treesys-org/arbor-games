@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -94,12 +95,24 @@
         #bg-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
         
         #game-ui {
-            position: relative; z-index: 10; display: flex; flex-direction: column; height: 100vh; padding: 1rem; box-sizing: border-box;
+            position: relative; z-index: 10; display: flex; flex-direction: column; height: 100vh; 
+            /* Added padding for notch safe area */
+            padding: 1rem; 
+            padding-top: max(1rem, env(safe-area-inset-top)); 
+            box-sizing: border-box;
         }
 
         header {
-            display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 0.5rem;
-            position: relative; z-index: 50; pointer-events: none; height: 4rem; flex-shrink: 0;
+            display: flex; justify-content: space-between; align-items: flex-end; 
+            margin-bottom: 1rem; /* Increased margin */
+            position: relative; 
+            z-index: 60; /* Higher than cards to avoid clipping */
+            pointer-events: none; 
+            height: auto; min-height: 4rem; 
+            flex-shrink: 0;
+            /* Added background gradient so 3D cards don't make text unreadable */
+            background: linear-gradient(to bottom, #0f172a 60%, rgba(15, 23, 42, 0) 100%);
+            padding-bottom: 10px;
         }
         
         .header-content { pointer-events: auto; }

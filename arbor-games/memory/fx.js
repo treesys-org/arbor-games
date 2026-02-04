@@ -1,3 +1,4 @@
+
 /**
  * FX.JS
  * Visuals and Audio Engine
@@ -110,7 +111,9 @@ export class FX {
             ctx.fillStyle = p.color;
             ctx.globalAlpha = p.life;
             ctx.beginPath();
-            ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+            // FIX: Ensure radius is never negative to prevent crash.
+            const radius = Math.max(0, p.size * p.life);
+            ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
             ctx.fill();
 
             if (p.life <= 0) this.particles.splice(i, 1);
@@ -159,4 +162,3 @@ export class FX {
         requestAnimationFrame(() => this.renderLoop());
     }
 }
-

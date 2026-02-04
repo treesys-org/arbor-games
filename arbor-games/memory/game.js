@@ -306,28 +306,35 @@ Do NOT use markdown.
             }
             this.els.score.innerText = this.state.score;
 
-            // Wait 3 SECONDS (3000ms) before clearing the cards so user can read them
+            // FIX: Reduced wait time from 3000ms to 1200ms to avoid feeling like a crash
             setTimeout(() => {
-                if(el1) el1.classList.add('matched');
-                if(el2) el2.classList.add('matched');
-                
-                if(el1 && el2) {
-                    const rect = el1.getBoundingClientRect();
-                    const rect2 = el2.getBoundingClientRect();
-                    this.fx.spawnBloom(rect.left + rect.width/2, rect.top + rect.height/2);
-                    this.fx.spawnBloom(rect2.left + rect2.width/2, rect2.top + rect2.height/2);
-                }
-                
-                this.fx.growPlant();
-                this.fx.playMatchSound(this.state.combo);
-                
-                this.state.flipped = [];
-                this.state.locked = false;
+                try {
+                    if(el1) el1.classList.add('matched');
+                    if(el2) el2.classList.add('matched');
+                    
+                    if(el1 && el2) {
+                        const rect = el1.getBoundingClientRect();
+                        const rect2 = el2.getBoundingClientRect();
+                        // Verify Rects are valid before spawning effects to prevent errors
+                        if (rect.width > 0) this.fx.spawnBloom(rect.left + rect.width/2, rect.top + rect.height/2);
+                        if (rect2.width > 0) this.fx.spawnBloom(rect2.left + rect2.width/2, rect2.top + rect2.height/2);
+                    }
+                    
+                    this.fx.growPlant();
+                    this.fx.playMatchSound(this.state.combo);
+                    
+                } catch (e) {
+                    console.error("Visual Effect Error:", e);
+                } finally {
+                    // CRITICAL FIX: Ensure game unlocks even if effects fail
+                    this.state.flipped = [];
+                    this.state.locked = false;
 
-                if (this.state.matchedCount === this.state.cards.length) {
-                    this.triggerVictory();
+                    if (this.state.matchedCount === this.state.cards.length) {
+                        this.triggerVictory();
+                    }
                 }
-            }, 3000);
+            }, 1200);
 
         } else {
             this.state.combo = 0;
@@ -348,8 +355,6 @@ Do NOT use markdown.
             
             // SRS REPORTING
             if (window.Arbor && window.Arbor.memory) {
-                // If score is decent (e.g. > 1500), report quality 5, else 3
-                // Simple logic: If we matched all without many fails, score is high
                 const quality = this.state.score > 2000 ? 5 : 4;
                 console.log(`Reporting Memory: ${this.state.currentLessonId} -> Quality ${quality}`);
                 window.Arbor.memory.report(this.state.currentLessonId, quality);
